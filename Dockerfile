@@ -1,15 +1,20 @@
 FROM ubuntu:16.04
 
+WORKDIR /root/source
+
 ENV DEBIAN_FRONTEND noninteractive
 ENV USER root
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends ubuntu-desktop && \
-    apt-get install -y gnome-panel gnome-settings-daemon metacity nautilus gnome-terminal && \
-    apt-get install -y tightvncserver && \
-	apt-get install -y wget && \
-	apt-get install -y tar && \
-    mkdir /root/.vnc
+    apt-get install -y --no-install-recommends ubuntu-desktop \
+    gnome-panel \
+    gnome-settings-daemon \
+    metacity \
+    gnome-terminal \
+    nautilus \
+	wget \
+	tar \
+    ssh
 	
 # Install Choregraphe Suite 2.5.5.5
 RUN wget -P /root/ https://community-static.aldebaran.com/resources/2.5.10/Choregraphe/choregraphe-suite-2.5.10.7-linux64-setup.run
