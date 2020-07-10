@@ -1,5 +1,7 @@
 FROM ubuntu:16.04
 
+WORKDIR /root/source
+
 ENV DEBIAN_FRONTEND noninteractive
 ENV USER root
 
