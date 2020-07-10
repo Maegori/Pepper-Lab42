@@ -29,3 +29,7 @@ RUN tar -xvzf /root/pynaoqi-python2.7-2.5.7.1-linux64.tar.gz -C /root/
 RUN rm /root/pynaoqi-python2.7-2.5.7.1-linux64.tar.gz
 ENV LD_LIBRARY_PATH /opt/Aldebaran/lib/
 ENV PYTHONPATH="/root/pynaoqi-python2.7-2.5.7.1-linux64/lib/python2.7/site-packages"
+
+# Set correct python
+RUN echo "alias py='/opt/Aldebaran/bin/python2.orig'" >> ~/.bashrc
+
