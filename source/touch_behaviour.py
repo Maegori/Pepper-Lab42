@@ -4,9 +4,6 @@ import argparse
 import functools
 import sys
 
-
-
-
 class HandSqueezer(object):
 
     def __init__(self, app):
@@ -77,3 +74,4 @@ if __name__ == "__main__":
     print("Succesfully connected to Pepper @ tcp://" + args.ip + ":" + str(args.port))
     react_to_touch = HandSqueezer(app)
     app.run()
+
