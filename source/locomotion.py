@@ -24,7 +24,7 @@ class Navigator(object):
         # # Connect event callback
         # self.event = self.sonarLeft.signal.connect(functools.partial(self.log, "SonarLeftDetected"))
         #print("\n".join(self.memoryService.getDataListName()))
-        self.follow()
+        self.remoteControlled()
 
     def move(self):
         print("Starting to move")
@@ -44,8 +44,21 @@ class Navigator(object):
             
             self.motionService.stopMove()
 
+    def remoteControlled(self):
+        while True:
+            key = raw_input("Next move: ")
 
-        
+            if key == "w":
+                self.motionService.moveToward(1, 0, 0)
+            elif key == "s":
+                self.motionService.moveToward(-1, 0, 0)
+            elif key == "a":
+                self.motionService.moveToward(0, 0, 1)
+            elif key == "d":
+                self.motionService.moveToward(0, 0, -1)
+
+            time.sleep(2)
+            self.motionService.stopMove()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
