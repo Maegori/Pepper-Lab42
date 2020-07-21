@@ -26,6 +26,7 @@ RUN apt-get -y update && \
         libtiff-dev \
         libjasper-dev \
         libv4l-dev \
+        python-tk \
         ssh
 
 RUN     wget https://bootstrap.pypa.io/get-pip.py && \
@@ -80,6 +81,11 @@ RUN rm /root/pynaoqi-python2.7-2.5.7.1-linux64.tar.gz
 ENV LD_LIBRARY_PATH /opt/Aldebaran/lib/
 ENV PYTHONPATH="/root/pynaoqi-python2.7-2.5.7.1-linux64/lib/python2.7/site-packages"
 
-RUN pip install pandas
+COPY requirements.txt /root/requirements.txt
+RUN pip install -r /root/requirements.txt
 
 WORKDIR /root/source
+
+# docker run -it --name pepper --net=host --env="DISPLAY" --volume="$HOME/.Xauthority:/root/.Xauthority:rw" -v ${PWD}/source:/root/source lab42
+# docker start pepper
+# docker attach pepper
