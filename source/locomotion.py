@@ -5,6 +5,8 @@ import functools
 import sys
 import time
 
+from pynput import keyboard
+
 class Navigator(object):
 
     def __init__(self, app):
@@ -24,41 +26,63 @@ class Navigator(object):
         # # Connect event callback
         # self.event = self.sonarLeft.signal.connect(functools.partial(self.log, "SonarLeftDetected"))
         #print("\n".join(self.memoryService.getDataListName()))
+
         self.remoteControlled()
 
-    def move(self):
-        print("Starting to move")
-        self.motionService.wakeUp()
-        self.motionService.moveToward(0, 0, 1)
-        time.sleep(2)
-        self.motionService.stopMove()
-        print("Stopped moving")
+    # def move(self):
+    #     print("Starting to move")
+    #     self.motionService.wakeUp()
+    #     self.motionService.moveToward(0, 0, 1)
+    #     time.sleep(2)
+    #     self.motionService.stopMove()
+    #     print("Stopped moving")
 
-    def follow(self):
-        print("Following")
+    # def follow(self):
+    #     print("Following")
         
-        while True:
-            if (self.memoryService.getData("Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value") > 1):
-                self.motionService.moveToward(0, 0, 1)
-                time.sleep(3)
+    #     while True:
+    #         if (self.memoryService.getData("Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value") > 1):
+    #             self.motionService.moveToward(0, 0, 1)
+    #             time.sleep(3)
             
-            self.motionService.stopMove()
+    #         self.motionService.stopMove()
+
+    def on_press(self, key):
+        if key == keyboard.Key.up:
+            self.motionService.moveToward(1, 0, 0)
+        elif key == keyboard.Key.right:
+            self.motionService.moveToward(0, 0, -1)
+        elif key == keyboard.Key.down:
+            self.motionService.moveToward(-1, 0, 0)
+        elif key == keyboard.Key.left:
+            self.motionService.moveToward(0, 0, 1)
+
+    def on_release(self, key):
+        self.motionService.stopMove()
+
+        if key == keyboard.Key.esc:
+            print("Exiting remote controlled mode")
+            return False
 
     def remoteControlled(self):
-        while True:
-            key = raw_input("Next move: ")
+        self.motionService.wakeUp()
+        self.motionService.moveInit()
+        print("Start")
 
-            if key == "w":
-                self.motionService.moveToward(1, 0, 0)
-            elif key == "s":
-                self.motionService.moveToward(-1, 0, 0)
-            elif key == "a":
-                self.motionService.moveToward(0, 0, 1)
-            elif key == "d":
-                self.motionService.moveToward(0, 0, -1)
+        # Blocking
+        with keyboard.Listener(on_press =self.on_press, on_release=self.on_release) as listener:
+            listener.join()
 
-            time.sleep(2)
-            self.motionService.stopMove()
+        # # Non-blocking 
+        # listener = keyboard.Listener(
+        #     on_press=on_press,
+        #     on_release=on_release)
+        # listener.start()
+
+        print("Stop")
+        self.motionService.rest()
+        
+        
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

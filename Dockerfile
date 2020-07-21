@@ -81,5 +81,6 @@ ENV LD_LIBRARY_PATH /opt/Aldebaran/lib/
 ENV PYTHONPATH="/root/pynaoqi-python2.7-2.5.7.1-linux64/lib/python2.7/site-packages"
 
 RUN pip install pandas
+RUN pip install pynput
 
 WORKDIR /root/source
