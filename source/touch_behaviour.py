@@ -10,13 +10,13 @@ class HandSqueezer(object):
         super(HandSqueezer, self).__init__()
         app.start()
         session = app.session
+        self.language = "Dutch"
         # Get services
         self.memory = session.service("ALMemory")
         self.tts = session.service("ALTextToSpeech")
         # Connect event callback
         self.touch = self.memory.subscriber("TouchChanged")
         self.id = self.touch.signal.connect(functools.partial(self.onTouched, "TouchChanged"))
-        self.language = "Dutch"
 
     def onTouched(self, strVarName, value):
         self.touch.signal.disconnect(self.id)
