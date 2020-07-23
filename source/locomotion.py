@@ -25,8 +25,9 @@ class Navigator(object):
 
         # # Connect event callback
         # self.event = self.sonarLeft.signal.connect(functools.partial(self.log, "SonarLeftDetected"))
-        #print("\n".join(self.memoryService.getDataListName()))
-
+        #print("\n".join(self.memoryService.getDataListName()))  
+        self.x = 0
+        self.theta = 0        
         self.remoteControlled()
 
     # def move(self):
@@ -48,20 +49,36 @@ class Navigator(object):
     #         self.motionService.stopMove()
 
     def on_press(self, key):
+        x, theta = self.x, self.theta
+
         if key == keyboard.Key.up:
-            self.motionService.moveToward(1, 0, 0)
-        elif key == keyboard.Key.right:
-            self.motionService.moveToward(0, 0, -1)
+            self.x = 1
         elif key == keyboard.Key.down:
-            self.motionService.moveToward(-1, 0, 0)
+            self.x = -1
+        elif key == keyboard.Key.right:
+            self.theta = -1
         elif key == keyboard.Key.left:
-            self.motionService.moveToward(0, 0, 1)
+            self.theta = 1
+
+        if self.x != x or self.theta != theta:
+            print("Moving: ", self.x, self.theta)
+            self.motionService.moveToward(self.x, 0, self.theta)
 
     def on_release(self, key):
-        self.motionService.stopMove()
+        if keyboard.Key.down or keyboard.Key.up:
+            self.x = 0 
+        if keyboard.Key.right or keyboard.Key.left:
+            self.theta = 0
+
+        print(self.x, self.theta)
+        if not self.x and not self.theta:
+            self.motionService.stopMove()   
+
+
 
         if key == keyboard.Key.esc:
             print("Exiting remote controlled mode")
+            self.motionService.stopMove()  
             return False
 
     def remoteControlled(self):
@@ -81,6 +98,7 @@ class Navigator(object):
 
         print("Stop")
         self.motionService.rest()
+        return
         
         
 
@@ -103,7 +121,6 @@ if __name__ == "__main__":
 
     print("Succesfully connected to Pepper @ tcp://" + args.ip + ":" + str(args.port))
     nav = Navigator(app)
-    nav.move()
     app.run()
 
 
