@@ -61,27 +61,27 @@ class Navigator(object):
         for p in value:
             if p[1]:
                 parts.add(p[0])
-            elif p[0] in arms:
-                self.motionService.setStiffnesses(arms, 1)
 
         if arms.intersection(parts):
             # self.tts.say("Gaan we op een wandeling?")
-            self.motionService.setStiffnesses(arms, 0)
+            self.motionService.setStiffnesses(arms, 0.1)
+        else:
+            self.motionService.setStiffnesses(arms, 1)
 
-        # self.id = self.touch.signal.connect(
-        #     functools.partial(self.onTouched, "TouchChanged"))
+        self.id = self.touch.signal.connect(
+            functools.partial(self.onTouched, "TouchChanged"))
 
     def onPress(self, key):
         x, theta = self.x, self.theta
-
+        speed = 0.5
         if key == keyboard.Key.up:
-            self.x = 1
+            self.x = speed
         elif key == keyboard.Key.down:
-            self.x = -1
+            self.x = -speed
         elif key == keyboard.Key.right:
-            self.theta = -1
+            self.theta = -speed
         elif key == keyboard.Key.left:
-            self.theta = 1
+            self.theta = speed
 
         if self.x != x or self.theta != theta:
             print(
@@ -111,7 +111,8 @@ class Navigator(object):
         arms = set(["LArm", "RArm"])
 
         self.motionService.wakeUp()
-        #self.motionService.setCollisionProtectionEnabled("All", False)
+        # self.motionService.setOrthogonalSecurityDistance(0.1)
+        self.motionService.setCollisionProtectionEnabled("Arms", False)
         self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
         self.awarenessService.setTrackingMode("WholeBody")
         self.motionService.moveInit()
@@ -127,8 +128,9 @@ class Navigator(object):
         #     on_release=on_release)
         # listener.start()
 
-        #self.motionService.setCollisionProtectionEnabled("Arms", True)
         self.motionService.setExternalCollisionProtectionEnabled("All", True)
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.motionService.setOrthogonalSecurityDistance(0.2)
         self.awarenessService.setTrackingMode("MoveContextually")
 
 
