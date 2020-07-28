@@ -20,12 +20,22 @@ class Navigator(object):
         self.motionService = session.service("ALMotion")
         self.postureService = session.service("ALRobotPosture")
         self.lifeService = session.service("ALAutonomousLife")
+        self.awarenessService = session.service("ALBasicAwareness")
         self.tts = session.service("ALTextToSpeech")
 
         # Set subscriptions
         self.touch = self.memoryService.subscriber("TouchChanged")
+        self.block = self.memoryService.subscriber(
+            "ALMotion/MoveFailed"
+        )
+
+        # Connect Callbacks
         self.id = self.touch.signal.connect(
-            functools.partial(self.onTouched, "TouchChanged"))
+            functools.partial(self.onTouched, "TouchChanged")
+        )
+        self.block.signal.connect(
+            functools.partial(self.onBlocked, "ALMotion/MoveFailed")
+        )
 
         # Fields
         self.language = "Dutch"
@@ -35,8 +45,15 @@ class Navigator(object):
         # Run behaviour
         self.remoteControlled()
 
+    def onBlocked(self, strVarName, value):
+
+        print(
+            "[FAIL] -- CAUSE={}, STATUS={}, LOCATION={}"
+            .format(value[0], value[1], value[2])
+        )
+
     def onTouched(self, strVarName, value):
-        # self.touch.signal.disconnect(self.id)
+        self.touch.signal.disconnect(self.id)
 
         arms = set(["LArm", "RArm"])
         parts = set()
@@ -48,7 +65,7 @@ class Navigator(object):
                 self.motionService.setStiffnesses(arms, 1)
 
         if arms.intersection(parts):
-            self.tts.say("Bla")
+            # self.tts.say("Gaan we op een wandeling?")
             self.motionService.setStiffnesses(arms, 0)
 
         # self.id = self.touch.signal.connect(
@@ -67,7 +84,9 @@ class Navigator(object):
             self.theta = 1
 
         if self.x != x or self.theta != theta:
-            print("Moving: ", self.x, self.theta)
+            print(
+                "[MOVING] -- {}, {}".format(self.x, self.theta)
+            )
             self.motionService.moveToward(self.x, 0, self.theta)
 
     def onRelease(self, key):
@@ -78,10 +97,7 @@ class Navigator(object):
         if key == keyboard.Key.right or key == keyboard.Key.left:
             self.theta = 0
 
-        print(key, self.x, self.theta)
-
         if not self.x and not self.theta:
-            print("Stopping")
             self.motionService.stopMove()
         if self.x != x or self.theta != theta:
             self.motionService.moveToward(self.x, 0, self.theta)
@@ -92,11 +108,15 @@ class Navigator(object):
             return False
 
     def remoteControlled(self):
-        self.motionService.wakeUp()
-        self.lifeService.setAutonomousAbilityEnabled("All", False)
-        self.motionService.moveInit()
-        print("Start")
+        arms = set(["LArm", "RArm"])
 
+        self.motionService.wakeUp()
+        #self.motionService.setCollisionProtectionEnabled("All", False)
+        self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
+        self.awarenessService.setTrackingMode("WholeBody")
+        self.motionService.moveInit()
+
+        print("Start")
         # Blocking
         with keyboard.Listener(on_press=self.onPress, on_release=self.onRelease) as listener:
             listener.join()
@@ -107,8 +127,9 @@ class Navigator(object):
         #     on_release=on_release)
         # listener.start()
 
-        print("Stop")
-        self.lifeService.setAutonomousAbilityEnabled("All", True)
+        #self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.motionService.setExternalCollisionProtectionEnabled("All", True)
+        self.awarenessService.setTrackingMode("MoveContextually")
 
 
 if __name__ == "__main__":

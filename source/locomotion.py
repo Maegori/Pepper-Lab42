@@ -7,6 +7,7 @@ import time
 
 from pynput import keyboard
 
+
 class Navigator(object):
 
     def __init__(self, app):
@@ -25,9 +26,9 @@ class Navigator(object):
 
         # # Connect event callback
         # self.event = self.sonarLeft.signal.connect(functools.partial(self.log, "SonarLeftDetected"))
-        #print("\n".join(self.memoryService.getDataListName()))  
+        # print("\n".join(self.memoryService.getDataListName()))
         self.x = 0
-        self.theta = 0        
+        self.theta = 0
         self.remoteControlled()
 
     # def move(self):
@@ -40,67 +41,75 @@ class Navigator(object):
 
     # def follow(self):
     #     print("Following")
-        
+
     #     while True:
     #         if (self.memoryService.getData("Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value") > 1):
     #             self.motionService.moveToward(0, 0, 1)
     #             time.sleep(3)
-            
+
     #         self.motionService.stopMove()
 
-    def on_press(self, key):
+    def onPress(self, key):
         x, theta = self.x, self.theta
 
-        if key == keyboard.Key.up:
-            self.x = 1
-        elif key == keyboard.Key.down:
-            self.x = -1
-        elif key == keyboard.Key.right:
-            self.theta = -1
-        elif key == keyboard.Key.left:
-            self.theta = 1
-
-        if self.x != x or self.theta != theta:
-            print("Moving: ", self.x, self.theta)
-            self.motionService.moveToward(self.x, 0, self.theta)
-
-    def on_release(self, key):
-        if keyboard.Key.down or keyboard.Key.up:
-            self.x = 0 
-        if keyboard.Key.right or keyboard.Key.left:
+        if key == keyboard.Key.down or key == keyboard.Key.up:
+            self.x = 0
+        if key == keyboard.Key.right or key == keyboard.Key.left:
             self.theta = 0
 
-        print(self.x, self.theta)
+        print(key, self.x, self.theta)
+
         if not self.x and not self.theta:
-            self.motionService.stopMove()   
-
-
+            print("Stopping")
+            self.motionService.stopMove()
+        if self.x != x or self.theta != theta:
+            self.motionService.moveToward(self.x, 0, self.theta)
 
         if key == keyboard.Key.esc:
             print("Exiting remote controlled mode")
-            self.motionService.stopMove()  
+            self.motionService.stopMove()
+            return False
+
+    def onRelease(self, key):
+        x, theta = self.x, self.theta
+
+        if key == keyboard.Key.down or key == keyboard.Key.up:
+            self.x = 0
+        if key == keyboard.Key.right or key == keyboard.Key.left:
+            self.theta = 0
+
+        print(key, self.x, self.theta)
+
+        if not self.x and not self.theta:
+            print("Stopping")
+            self.motionService.stopMove()
+        if self.x != x or self.theta != theta:
+            self.motionService.moveToward(self.x, 0, self.theta)
+
+        if key == keyboard.Key.esc:
+            print("Exiting remote controlled mode")
+            self.motionService.stopMove()
             return False
 
     def remoteControlled(self):
         self.motionService.wakeUp()
+        self.lifeService.setAutonomousAbilityEnabled("All", False)
         self.motionService.moveInit()
         print("Start")
 
         # Blocking
-        with keyboard.Listener(on_press =self.on_press, on_release=self.on_release) as listener:
+        with keyboard.Listener(on_press=self.onPress, on_release=self.onRelease) as listener:
             listener.join()
 
-        # # Non-blocking 
+        # # Non-blocking
         # listener = keyboard.Listener(
         #     on_press=on_press,
         #     on_release=on_release)
         # listener.start()
 
         print("Stop")
-        self.motionService.rest()
-        return
-        
-        
+        self.lifeService.setAutonomousAbilityEnabled("All", True)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -115,14 +124,15 @@ if __name__ == "__main__":
         connection_url = "tcp://" + args.ip + ":" + str(args.port)
         app = qi.Application(["Swing", "--qi-url=" + connection_url])
     except RuntimeError:
-        print ("Can't connect to Naoqi at ip \"" + args.ip + "\" on port " + str(args.port) +".\n"
-               "Please check your script arguments. Run with -h option for help.")
+        print("Can't connect to Naoqi at ip \"" + args.ip + "\" on port " + str(args.port) + ".\n"
+              "Please check your script arguments. Run with -h option for help.")
         sys.exit(1)
 
-    print("Succesfully connected to Pepper @ tcp://" + args.ip + ":" + str(args.port))
+    print("Succesfully connected to Pepper @ tcp://" +
+          args.ip + ":" + str(args.port))
     nav = Navigator(app)
     app.run()
 
 
 # Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value
-# Device/SubDeviceList/Platform/Back/Sonar/Sensor/Value
+# Device/SubDeviceList/Pla`tform/Back/Sonar/Sensor/Value
