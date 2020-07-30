@@ -28,7 +28,7 @@ class Navigator(object):
             "ALMotion/MoveFailed"
         )
 
-        # Connect Callbacks
+        # Connect callbacks
         self.id = self.touch.signal.connect(
             functools.partial(self.onTouched, "TouchChanged")
         )
