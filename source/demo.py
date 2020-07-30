@@ -19,7 +19,6 @@ class Navigator(object):
         self.memoryService = session.service("ALMemory")
         self.motionService = session.service("ALMotion")
         self.postureService = session.service("ALRobotPosture")
-        self.lifeService = session.service("ALAutonomousLife")
         self.awarenessService = session.service("ALBasicAwareness")
         self.tts = session.service("ALTextToSpeech")
 
@@ -130,7 +129,7 @@ class Navigator(object):
 
         self.motionService.setExternalCollisionProtectionEnabled("All", True)
         self.motionService.setCollisionProtectionEnabled("Arms", True)
-        self.motionService.setOrthogonalSecurityDistance(0.2)
+        self.motionService.setOrthogonalSecurityDistance(0.4)
         self.awarenessService.setTrackingMode("MoveContextually")
 
 
