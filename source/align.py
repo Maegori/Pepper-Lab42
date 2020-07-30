@@ -37,22 +37,17 @@ class Align(object):
         keys.extend(["Device/SubDeviceList/Platform/LaserSensor/Front/Horizontal/Seg{}/X/Sensor/Value".format(i) for i in range(10, 16)])
         
         while True:
-            las_arr = np.absolute(np.array(self.memoryService.getListData(keys)))
-            rects = plt.bar(bins, las_arr, align='edge')
-            self.autolabel(rects)
+            las_arr = self.memoryService.getListData(keys)
+            print(las_arr)
+            print()
+            print(np.argmin(las_arr), las_arr[np.argmin(las_arr)])
+            print("-----------------------------------")
+            
+            #las_arr = np.absolute(np.array(self.memoryService.getListData(keys)))
+            plt.bar(bins, las_arr)
             plt.pause(0.01)
             fig.canvas.draw()
             fig.clear()
-
-
-    def autolabel(self, rects):
-        for rect in rects:
-            height = rect.get_height()
-            self.ax.annotate('{}'.format(height),
-                        xy=(rect.get_x() + rect.get_width() / 2, height),
-                        xytext=(0, 3),  # 3 points vertical offset
-                        textcoords="offset points",
-                        ha='center', va='bottom')
 
     # def move(self):
     #     print("Starting to move")
