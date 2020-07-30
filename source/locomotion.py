@@ -132,6 +132,7 @@ class Navigator(object):
         
         
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", type=str, default="146.50.60.38",
@@ -145,15 +146,15 @@ if __name__ == "__main__":
         connection_url = "tcp://" + args.ip + ":" + str(args.port)
         app = qi.Application(["Swing", "--qi-url=" + connection_url])
     except RuntimeError:
-        print ("Can't connect to Naoqi at ip \"" + args.ip + "\" on port " + str(args.port) +".\n"
-               "Please check your script arguments. Run with -h option for help.")
+        print("Can't connect to Naoqi at ip \"" + args.ip + "\" on port " + str(args.port) + ".\n"
+              "Please check your script arguments. Run with -h option for help.")
         sys.exit(1)
 
-    print("Succesfully connected to Pepper @ tcp://" + args.ip + ":" + str(args.port))
+    print("Succesfully connected to Pepper @ tcp://" +
+          args.ip + ":" + str(args.port))
     nav = Navigator(app)
-    nav.move()
     app.run()
 
 
 # Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value
-# Device/SubDeviceList/Platform/Back/Sonar/Sensor/Value
+# Device/SubDeviceList/Pla`tform/Back/Sonar/Sensor/Value

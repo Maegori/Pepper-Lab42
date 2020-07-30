@@ -50,7 +50,7 @@ class HandSqueezer(object):
     
         
         if "LArm" in bodies or "RArm" in bodies:
-            self.tts.say("Are we going on a walk?", self.language)
+            self.tts.say("Gaan we op een wandeling?", self.language)
         else:
             self.tts.say("Stop met mij aan te raken", self.language)
 
