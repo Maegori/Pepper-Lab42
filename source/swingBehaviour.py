@@ -36,6 +36,12 @@ class Swing(object):
         # Scripts
         self.hit()
 
+    def onBlocked(self, strVarName, value):
+        print(
+            "[FAIL] -- CAUSE={}, STATUS={}, LOCATION={}"
+            .format(value[0], value[1], value[2])
+        )
+
     def hit(self):
         self.awarenessService.setTrackingMode("WholeBody")
         self.align()
@@ -93,12 +99,6 @@ class Swing(object):
         self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
         self.tts.say("Bonk")
         self.motionService.setExternalCollisionProtectionEnabled("Arms", True)
-
-    def onBlocked(self, strVarName, value):
-        print(
-            "[FAIL] -- CAUSE={}, STATUS={}, LOCATION={}"
-            .format(value[0], value[1], value[2])
-        )
 
 
 if __name__ == "__main__":

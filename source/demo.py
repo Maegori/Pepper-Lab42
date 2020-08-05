@@ -4,8 +4,28 @@ import argparse
 import functools
 import sys
 import time
+import pickle
+import numpy as np
 
 from pynput import keyboard
+
+
+MID_FRONT = 8
+DETECTION_RANGE = 1.5
+TARGET_DISTANCE = 0.42
+
+A_BUTTON_ON = 65537
+A_BUTTON_OFF = 65536
+
+
+EVENT_FORMAT = str('llHHi')
+EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
+
+PATH = "/dev/input/js0"
+SIZE = 100
+
+Y = [50495398]
+X = [67272614]
 
 
 class Navigator(object):
@@ -18,6 +38,7 @@ class Navigator(object):
         # Get services
         self.memoryService = session.service("ALMemory")
         self.motionService = session.service("ALMotion")
+        self.laserService = session.service("ALLaser")
         self.postureService = session.service("ALRobotPosture")
         self.awarenessService = session.service("ALBasicAwareness")
         self.tts = session.service("ALTextToSpeech")
@@ -40,11 +61,13 @@ class Navigator(object):
         self.language = "Dutch"
         self.x = 0
         self.theta = 0
+        self.listener = None
 
         # Run behaviour
         self.remoteControlled()
 
     def onBlocked(self, strVarName, value):
+        """Print information when movement is blocked."""
 
         print(
             "[FAIL] -- CAUSE={}, STATUS={}, LOCATION={}"
@@ -72,7 +95,8 @@ class Navigator(object):
 
     def onPress(self, key):
         x, theta = self.x, self.theta
-        speed = 0.5
+        speed = 1
+
         if key == keyboard.Key.up:
             self.x = speed
         elif key == keyboard.Key.down:
@@ -101,9 +125,14 @@ class Navigator(object):
         if self.x != x or self.theta != theta:
             self.motionService.moveToward(self.x, 0, self.theta)
 
+        if key == keyboard.Key.space:
+            self.motionService.stopMove()
+            self.listener.stop()
+            self.remoteControlled()
         if key == keyboard.Key.esc:
             print("Exiting remote controlled mode")
             self.motionService.stopMove()
+            self.listener.stop()
             return False
 
     def remoteControlled(self):
@@ -115,22 +144,142 @@ class Navigator(object):
         self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
         self.awarenessService.setTrackingMode("WholeBody")
         self.motionService.moveInit()
+        with open(PATH, 'rb')as f:
+            for i in range(6):
+                struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
 
-        print("Start")
-        # Blocking
-        with keyboard.Listener(on_press=self.onPress, on_release=self.onRelease) as listener:
-            listener.join()
+            while True:
+                data = struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
+                if data[4] < 50528251 and data[4] > 50462720:
+                    X.append(data[4])
+                    Y.append(Y[-1])
+
+                    x = round(float(X[-1] - 50495398) / 32678, 1)
+                    y = round(float(Y[-1] - 67272614) / 32678, 1)
+
+                    x = 1 + x if x < 0 else x - 1
+                    y = -(y + 1) if y < 0 else 1 - y
+
+                    print(round(x, 2), round(y, 2))
+                    self.motionService.moveToward(round(y, 2), 0, round(-x, 2))
+
+                elif data[4] < 67305465 and data[4] > 67239936:
+                    Y.append(data[4])
+                    X.append(X[-1])
+
+                    x = round(float(X[-1] - 50495398) / 32678, 1)
+                    y = round(float(Y[-1] - 67272614) / 32678, 1)
+
+                    x = 1 + x if x < 0 else x - 1
+                    y = -(y + 1) if y < 0 else 1 - y
+
+                    print(round(x, 2), round(y, 2))
+                    self.motionService.moveToward(round(y, 2), 0, round(-x, 2))
+                elif data[4] == A_BUTTON_ON or data[4] == A_BUTTON_OFF:
+                    break
+
+        # print("Start")
+        # # Blocking
+        # with keyboard.Listener(
+        #     on_press=self.onPress,
+        #     on_release=self.onRelease
+        # ) as self.listener:
+        #     self.listener.join()
 
         # # Non-blocking
-        # listener = keyboard.Listener(
-        #     on_press=on_press,
-        #     on_release=on_release)
-        # listener.start()
+        # self.listener = keyboard.Listener(
+        #     on_press=self.onPress,
+        #     on_release=self.onRelease
+        # )
+        # self.listener.start()
 
-        self.motionService.setExternalCollisionProtectionEnabled("All", True)
-        self.motionService.setCollisionProtectionEnabled("Arms", True)
-        self.motionService.setOrthogonalSecurityDistance(0.4)
+        # self.motionService.setExternalCollisionProtectionEnabled("All", True)
+        # self.motionService.setCollisionProtectionEnabled("Arms", True)
+        # self.motionService.setOrthogonalSecurityDistance(0.4)
+        # self.awarenessService.setTrackingMode("MoveContextually")
+        self.alignHit()
+
+    def alignHit(self):
+        """Align with the object and play the hit animation after a cue."""
+        self.awarenessService.setTrackingMode("WholeBody")
+        self.align()
+        self.animate()
         self.awarenessService.setTrackingMode("MoveContextually")
+        self.motionService.rest()
+
+    def align(self):
+        self.motionService.moveInit()
+
+        keys = [
+            "Device/SubDeviceList/Platform/LaserSensor/Front/Horizontal/Seg" +
+            ("0" if i < 10 else "") + str(i) + "/X/Sensor/Value" for i in range(1, 16)
+        ]
+
+        phi = 0.0698  # Radians between two adjacent lasers
+
+        while True:
+            scan = self.memoryService.getListData(keys)
+            target = np.argmin(scan)
+
+            print(
+                "Aligning with: {} {}".format(target, scan[target])
+            )
+
+            if scan[target] < DETECTION_RANGE:
+                if target == MID_FRONT:
+                    self.motionService.stopMove()
+                    if self.approach(keys) == MID_FRONT:
+                        break
+
+                theta = float((MID_FRONT - target) * phi)
+                if theta:
+                    self.motionService.moveToward(0, 0, theta)
+
+        self.motionService.stopMove()
+        print("Target reached and aligned with")
+
+    def animate(self):
+        self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
+        self.motionService.moveToward(0, 0, 0.69)
+        time.sleep(1.1)
+        self.motionService.stopMove()
+
+        animation = dict()
+        names = []
+        times = []
+        keys = []
+        isAbsolute = True
+
+        with open("animations/"+sys.argv[2]+".pickle", "rb") as f:
+            animation = pickle.load(f)
+
+        for key in animation.keys():
+            names.append(key)
+            times.append(animation[key][0])
+            keys.append(animation[key][1])
+
+        self.postureService.goToPosture("StandInit", 1)
+        self.motionService.angleInterpolation(names, keys, times, isAbsolute)
+        time.sleep(1.0)
+        self.motionService.setExternalCollisionProtectionEnabled("Arms", True)
+
+    def approach(self, keys):
+        """Move closer until the object is in the target range."""
+
+        print("Approaching target")
+        scan = self.memoryService.getListData(keys)
+
+        while min(scan) > TARGET_DISTANCE:
+            self.motionService.moveToward(0.3, 0, 0)
+            scan = self.memoryService.getListData(keys)
+
+            # if d > DETECTION_RANGE:
+            #     self.motionService.stopMove()
+            #     return searchflag?
+
+        self.motionService.stopMove()
+        print("In range of target")
+        return np.argmin(scan)
 
 
 if __name__ == "__main__":
@@ -139,7 +288,8 @@ if __name__ == "__main__":
                         help="Robot IP address. On robot or Local Naoqi: use '146.50.60.38'.")
     parser.add_argument("--port", type=int, default=9559,
                         help="Naoqi port number")
-
+    parser.add_argument("--animation", type=str,
+                        help="Name of the animation to play")
     args = parser.parse_args()
     try:
         # Initialize qi framework.
