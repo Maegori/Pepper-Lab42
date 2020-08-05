@@ -16,7 +16,6 @@ PATH = "/dev/input/js0"
 X = [50495398]
 Y = [67272614]
 
-#from pynput import keyboard
 
 class Navigator(object):
 
@@ -36,7 +35,7 @@ class Navigator(object):
 
         # # Connect event callback
         # self.event = self.sonarLeft.signal.connect(functools.partial(self.log, "SonarLeftDetected"))
-        #print("\n".join(self.memoryService.getDataListName()))
+        # print("\n".join(self.memoryService.getDataListName()))
 
         self.move()
 
@@ -76,61 +75,6 @@ class Navigator(object):
 
                     print(round(x, 2), round(y, 2))
                     self.motionService.moveToward(round(y, 2), 0, round(-x, 2))
-
-    # # def move(self):
-    # #     print("Starting to move")
-    # #     self.motionService.wakeUp()
-    # #     self.motionService.moveToward(0, 0, 1)
-    # #     time.sleep(2)
-    # #     self.motionService.stopMove()
-    # #     print("Stopped moving")
-
-    # # def follow(self):
-    # #     print("Following")
-        
-    # #     while True:
-    # #         if (self.memoryService.getData("Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value") > 1):
-    # #             self.motionService.moveToward(0, 0, 1)
-    # #             time.sleep(3)
-            
-    # #         self.motionService.stopMove()
-
-    # def on_press(self, key):
-    #     if key == keyboard.Key.up:
-    #         self.motionService.moveToward(1, 0, 0)
-    #     elif key == keyboard.Key.right:
-    #         self.motionService.moveToward(0, 0, -1)
-    #     elif key == keyboard.Key.down:
-    #         self.motionService.moveToward(-1, 0, 0)
-    #     elif key == keyboard.Key.left:
-    #         self.motionService.moveToward(0, 0, 1)
-
-    # def on_release(self, key):
-    #     self.motionService.stopMove()
-
-    #     if key == keyboard.Key.esc:
-    #         print("Exiting remote controlled mode")
-    #         return False
-
-    # def remoteControlled(self):
-    #     self.motionService.wakeUp()
-    #     self.motionService.moveInit()
-    #     print("Start")
-
-    #     # Blocking
-    #     with keyboard.Listener(on_press =self.on_press, on_release=self.on_release) as listener:
-    #         listener.join()
-
-    #     # # Non-blocking 
-    #     # listener = keyboard.Listener(
-    #     #     on_press=on_press,
-    #     #     on_release=on_release)
-    #     # listener.start()
-
-    #     print("Stop")
-    #     self.motionService.rest()
-        
-        
 
 
 if __name__ == "__main__":
