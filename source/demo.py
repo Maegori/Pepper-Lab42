@@ -6,6 +6,7 @@ import sys
 import time
 import pickle
 import numpy as np
+import struct
 
 from pynput import keyboard
 
@@ -17,6 +18,8 @@ TARGET_DISTANCE = 0.42
 A_BUTTON_ON = 65537
 A_BUTTON_OFF = 65536
 
+B_BUTTON_ON = 16842753
+B_BUTTON_OFF = 16842752
 
 EVENT_FORMAT = str('llHHi')
 EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
@@ -24,8 +27,8 @@ EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
 PATH = "/dev/input/js0"
 SIZE = 100
 
-Y = [50495398]
-X = [67272614]
+X = [50495398]
+Y = [67272614]
 
 
 class Navigator(object):
@@ -136,21 +139,23 @@ class Navigator(object):
             return False
 
     def remoteControlled(self):
-        arms = set(["LArm", "RArm"])
-
         self.motionService.wakeUp()
         # self.motionService.setOrthogonalSecurityDistance(0.1)
         self.motionService.setCollisionProtectionEnabled("Arms", False)
         self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
         self.awarenessService.setTrackingMode("WholeBody")
         self.motionService.moveInit()
+
+        print("start")
+
         with open(PATH, 'rb')as f:
             for i in range(6):
                 struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
 
             while True:
                 data = struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
-                if data[4] < 50528251 and data[4] > 50462720:
+                
+                if data[4] < 50528251 and data[4] > 50462730:
                     X.append(data[4])
                     Y.append(Y[-1])
 
@@ -161,7 +166,7 @@ class Navigator(object):
                     y = -(y + 1) if y < 0 else 1 - y
 
                     print(round(x, 2), round(y, 2))
-                    self.motionService.moveToward(round(y, 2), 0, round(-x, 2))
+                    self.motionService.moveToward(round(y, 2), 0, round(-x / 2, 2))
 
                 elif data[4] < 67305465 and data[4] > 67239936:
                     Y.append(data[4])
@@ -174,8 +179,13 @@ class Navigator(object):
                     y = -(y + 1) if y < 0 else 1 - y
 
                     print(round(x, 2), round(y, 2))
-                    self.motionService.moveToward(round(y, 2), 0, round(-x, 2))
+                    self.motionService.moveToward(round(y, 2), 0, round(-x / 2, 2))
                 elif data[4] == A_BUTTON_ON or data[4] == A_BUTTON_OFF:
+                    self.motionService.stopMove()
+                    self.alignHit()
+                elif data[4] == B_BUTTON_ON or data[4] == B_BUTTON_OFF:
+                    self.motionService.stopMove()
+                    self.motionService.rest()
                     break
 
         # print("Start")
@@ -197,7 +207,7 @@ class Navigator(object):
         # self.motionService.setCollisionProtectionEnabled("Arms", True)
         # self.motionService.setOrthogonalSecurityDistance(0.4)
         # self.awarenessService.setTrackingMode("MoveContextually")
-        self.alignHit()
+        
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
@@ -205,7 +215,7 @@ class Navigator(object):
         self.align()
         self.animate()
         self.awarenessService.setTrackingMode("MoveContextually")
-        self.motionService.rest()
+        #self.motionService.rest()
 
     def align(self):
         self.motionService.moveInit()
