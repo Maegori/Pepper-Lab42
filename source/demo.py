@@ -145,12 +145,9 @@ class Navigator(object):
             return False
 
     def remoteControlled(self):
-<<<<<<< HEAD
         """Controller controls"""
         arms = set(["LArm", "RArm"])
 
-=======
->>>>>>> 6320531de8c892a11cbc606307d72d092938873e
         self.motionService.wakeUp()
         # self.motionService.setOrthogonalSecurityDistance(0.1)
         self.motionService.setCollisionProtectionEnabled("Arms", False)
@@ -158,18 +155,15 @@ class Navigator(object):
         self.awarenessService.setTrackingMode("WholeBody")
         self.motionService.moveInit()
 
-<<<<<<< HEAD
-=======
         print("start")
 
->>>>>>> 6320531de8c892a11cbc606307d72d092938873e
         with open(PATH, 'rb')as f:
             for i in range(6):
                 struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
 
             while True:
                 data = struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
-                
+
                 if data[4] < 50528251 and data[4] > 50462730:
                     X.append(data[4])
                     Y.append(Y[-1])
@@ -181,7 +175,8 @@ class Navigator(object):
                     y = -(y + 1) if y < 0 else 1 - y
 
                     print(round(x, 2), round(y, 2))
-                    self.motionService.moveToward(round(y, 2), 0, round(-x / 2, 2))
+                    self.motionService.moveToward(
+                        round(y, 2), 0, round(-x / 2, 2))
 
                 elif data[4] < 67305465 and data[4] > 67239936:
                     Y.append(data[4])
@@ -194,7 +189,8 @@ class Navigator(object):
                     y = -(y + 1) if y < 0 else 1 - y
 
                     print(round(x, 2), round(y, 2))
-                    self.motionService.moveToward(round(y, 2), 0, round(-x / 2, 2))
+                    self.motionService.moveToward(
+                        round(y, 2), 0, round(-x / 2, 2))
                 elif data[4] == A_BUTTON_ON or data[4] == A_BUTTON_OFF:
                     self.motionService.stopMove()
                     self.alignHit()
@@ -222,7 +218,6 @@ class Navigator(object):
         # self.motionService.setCollisionProtectionEnabled("Arms", True)
         # self.motionService.setOrthogonalSecurityDistance(0.4)
         # self.awarenessService.setTrackingMode("MoveContextually")
-        
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
@@ -230,7 +225,7 @@ class Navigator(object):
         self.align()
         self.animate()
         self.awarenessService.setTrackingMode("MoveContextually")
-        #self.motionService.rest()
+        # self.motionService.rest()
 
     def align(self):
         self.motionService.moveInit()
