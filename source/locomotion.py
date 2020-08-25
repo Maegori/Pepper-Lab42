@@ -7,6 +7,9 @@ import time
 import io
 import struct
 import math
+import threading
+
+from xbone import Xbone
 
 EVENT_FORMAT = str('llHHi')
 EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
@@ -21,7 +24,8 @@ class Navigator(object):
 
     def __init__(self, app):
         super(Navigator, self).__init__()
-        app.start()
+        self.app = app
+        self.app.start()
         session = app.session
 
         # Get services
@@ -29,53 +33,39 @@ class Navigator(object):
         self.motionService = session.service("ALMotion")
         self.postureService = session.service("ALRobotPosture")
         self.laserService = session.service("ALLaser")
-        # Subscribe to events
-        # self.sonarLeft = self.memoryService.subscriber("SonarLeftDetected")
-        # self.sonarRight = self.memoryService.subscriber("SonarRightDetected")
-
-        # # Connect event callback
-        # self.event = self.sonarLeft.signal.connect(functools.partial(self.log, "SonarLeftDetected"))
-        # print("\n".join(self.memoryService.getDataListName()))
-
+        self.awarenessService = session.service("ALBasicAwareness")
+        self.controller = Xbone('/dev/input/js0')
+        print("hello")
         self.move()
+
 
     def move(self):
         self.motionService.wakeUp()
+        self.motionService.setOrthogonalSecurityDistance(0.1)
+        self.motionService.setCollisionProtectionEnabled("Arms", False)
+        self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
+        self.awarenessService.setTrackingMode("WholeBody")
         self.motionService.moveInit()
-        print("Start")
 
-        with open(PATH, 'rb')as f:
-            for i in range(6):
-                struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
+        print("start")
 
-            while True:
-                data = struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
-                if data[4] < 50528251 and data[4] > 50462720:
-                    X.append(data[4])
-                    Y.append(Y[-1])
+        t = threading.Thread(target=self.controller.read)
+        t.deamon = True
+        t.start()
 
-                    x = round(float(X[-1] - 50495398) / 32678, 1)
-                    y = round(float(Y[-1] - 67272614) / 32678, 1)
+        while True:
+            time.sleep(0.01)
+            self.motionService.moveToward(-self.controller.request_axis('ry'), 0, -self.controller.request_axis('rx'))
+            if self.controller.request_button('a'):
+                self.motionService.stopMove()
+                self.motionService.rest()
+                break
+            elif self.controller.request_button('b'):
+                self.motionService.stopMove()
+                self.motionService.rest()
+                break
 
-                    x = 1 + x if x < 0 else x - 1
-                    y = -(y + 1) if y < 0 else 1 - y
-
-                    print(round(x, 2), round(y, 2))
-                    self.motionService.moveToward(round(y, 2), 0, round(-x, 2))
-
-                elif data[4] < 67305465 and data[4] > 67239936:
-                    Y.append(data[4])
-                    X.append(X[-1])
-
-                    x = round(float(X[-1] - 50495398) / 32678, 1)
-                    y = round(float(Y[-1] - 67272614) / 32678, 1)
-
-                    x = 1 + x if x < 0 else x - 1
-                    y = -(y + 1) if y < 0 else 1 - y
-
-                    print(round(x, 2), round(y, 2))
-                    self.motionService.moveToward(round(y, 2), 0, round(-x, 2))
-
+    
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
