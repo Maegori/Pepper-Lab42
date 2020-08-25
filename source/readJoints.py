@@ -5,6 +5,8 @@ import math
 import sys
 import functools
 
+COEFF = 180 / math.pi
+
 
 class Joints(object):
 
@@ -38,36 +40,66 @@ class Joints(object):
         
         self.id = self.touch.signal.connect(functools.partial(self.onTouched, "TouchChanged"))
 
+    def isTouched(self):
+        return self.memoryService.getData("Device/SubDeviceList/LHand/Touch/Back/Sensor/Value")
+
     def move(self):
         print("Moving")
-        self.postureService.goToPosture("StandZero", 0.5)
         # print(self.postureService.goToPosture("walkByHand", 0.5))
         self.motionService.moveInit()
-        # self.awarenessService.setTrackingMode("Head")
+        self.awarenessService.setTrackingMode("Head")
         self.motionService.setCollisionProtectionEnabled("Arms", False)
         self.motionService.setExternalCollisionProtectionEnabled("All", False)
+        self.awarenessService.resumeAwareness()
+        self.awarenessService.setEnabled(True)
+        print(self.awarenessService.isEnabled())
+        self.awarenessService.setStimulusDetectionEnabled("Touch", False)
+
         
-
-        print("Moooo")
-        #self.motionService.setStiffnesses("LArm", [1, 1, 1, 0, 0, 1])
-        # elbow = 3
-        # wrist = 4
-
-        # rad_conv = 180 / math.pi
-
-        # print("start")
-        # while True:
-        #     try:
-        #         w_rad = self.motionService.getAngles("LArm", True)[wrist]
-        #         self.motionService.moveToward(0, 0, -round((w_rad * rad_conv) / 104.5, 2))
-        #     except KeyboardInterrupt:
-        #         print("\nstopped")
-        #         break
+        print("start")
+        while True:
+            #print(self.awarenessService.isAwarenessPaused())
+            try:
+                self.motionService.setAngles("LArm", [0, 0, 0, 0, 0, 0], 0.1)
+                self.motionService.setStiffnesses("LArm", [0.6, 0.1, 0, 0, 0, 0])
+                if self.isTouched():
+                    #print(-self.motionService.getAngles("LArm", True)[3] * COEFF - 0.5, self.elbowToScalar(), self.wristToScalar())
+                    self.motionService.moveToward(self.elbowToScalar(), 0, self.wristToScalar())
+                else:
+                    self.motionService.stopMove()
+            except KeyboardInterrupt:
+                print("\nstopped")
+                break
+        
 
         self.motionService.stopMove()
         self.motionService.setCollisionProtectionEnabled("Arms", True)
         self.motionService.setExternalCollisionProtectionEnabled("All", True)
-        #self.awarenessService.setTrackingMode("MoveContextually")
+        # self.motionService.setStiffnesses("LArm", 0)
+        self.postureService.goToPosture("Stand", 0.5)
+        self.awarenessService.setServiceEnabled("Touch", True)
+        self.awarenessService.setTrackingMode("MoveContextually")
+
+    def elbowToScalar(self):
+        e_angle = -self.motionService.getAngles("LArm", True)[3] * COEFF
+        e_angle -= 0.5
+        theta = 60.0
+        
+        if e_angle < theta:
+            return round(1 - (e_angle / theta), 1)
+        else:
+            return 0.0
+
+
+    def wristToScalar(self):
+        w_angle = self.motionService.getAngles("LArm", True)[4] * COEFF
+        theta = 14.5
+        if not (-theta < w_angle < theta):
+            return -round(w_angle / 104.5, 1)
+        else:
+            return 0.0
+
+
 
 if __name__ == "__main__":
 
