@@ -1,3 +1,4 @@
+import threading
 
 import qi
 import argparse
@@ -6,12 +7,8 @@ import sys
 import time
 import pickle
 import numpy as np
-import struct
-import threading
 
 from pynput import keyboard
-
-from xbone import Xbone
 
 
 MID_FRONT = 8
@@ -21,8 +18,6 @@ TARGET_DISTANCE = 0.42
 A_BUTTON_ON = 65537
 A_BUTTON_OFF = 65536
 
-B_BUTTON_ON = 16842753
-B_BUTTON_OFF = 16842752
 
 EVENT_FORMAT = str('llHHi')
 EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
@@ -30,8 +25,8 @@ EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
 PATH = "/dev/input/js0"
 SIZE = 100
 
-X = [50495398]
-Y = [67272614]
+Y = [50495398]
+X = [67272614]
 
 
 class Navigator(object):
@@ -73,11 +68,10 @@ class Navigator(object):
         self.theta = 0
         self.listener = None
 
-        self.controller = Xbone('/dev/input/js0')
-
         # Run behaviour
         self.remoteControlled()
 
+    @qi.multiThreaded()
     def onBlocked(self, strVarName, value):
         """Print information when movement is blocked."""
 
@@ -151,33 +145,27 @@ class Navigator(object):
 
     def remoteControlled(self):
         """Controller controls"""
-        arms = set(["LArm", "RArm"])
 
-        self.motionService.wakeUp()
-        self.motionService.setOrthogonalSecurityDistance(0.1)
-        self.motionService.setCollisionProtectionEnabled("Arms", False)
-        self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
-        self.awarenessService.setTrackingMode("WholeBody")
-        self.motionService.moveInit()
+        print("Start")
+        # # Blocking
+        with keyboard.Listener(
+            on_press=self.onPress,
+            on_release=self.onRelease
+        ) as self.listener:
+            self.listener.join()
 
-        print("start")
+        # # Non-blocking
+        # self.listener = keyboard.Listener(
+        #     on_press=self.onPress,
+        #     on_release=self.onRelease
+        # )
+        # self.listener.start()
 
-        t = threading.Thread(target=self.controller.read)
-        t.deamon = True
-        t.start()
-
-        while True:
-            time.sleep(0.01)
-            self.motionService.moveToward(-self.controller.request_axis('ry'), 0, -self.controller.request_axis('rx'))
-            if self.controller.request_button('a'):
-                self.motionService.stopMove()
-                self.motionService.rest()
-                self.alignHit()
-            elif self.controller.request_button('b'):
-                self.motionService.stopMove()
-                self.motionService.rest()
-                break
-                
+        # self.motionService.setExternalCollisionProtectionEnabled("All", True)
+        # self.motionService.setCollisionProtectionEnabled("Arms", True)
+        # self.motionService.setOrthogonalSecurityDistance(0.4)
+        # self.awarenessService.setTrackingMode("MoveContextually")
+        self.alignHit()
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
@@ -185,7 +173,7 @@ class Navigator(object):
         self.align()
         self.animate()
         self.awarenessService.setTrackingMode("MoveContextually")
-        # self.motionService.rest()
+        self.motionService.rest()
 
     def align(self):
         self.motionService.moveInit()
