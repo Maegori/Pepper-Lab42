@@ -12,6 +12,10 @@ poses themself are saved locally on pepper.
 https://sebastianwallkoetter.wordpress.com/2019/04/05/the-hidden-potential-of-nao-and-pepper-custom-robot-postures-in-naoqi-v2-4/
 """
 
+POS_ID = 1234
+POS_NAME = "walkByHand"
+POS_FILE_NAME = "walkInit_pose.pose"
+
 class Pose(object):
 
     def __init__(self, app):
@@ -25,28 +29,26 @@ class Pose(object):
         self.record()
 
     def record(self):
-        pos_id = 4242
-        pos_name = "handOpen"
-        pos_file_name = "custom_pose.pose"
+        print(self.posture.getMethodList())
 
         #save current posture
-        self.posture._saveCurrentPostureWithName(pos_id, pos_name)
+        self.posture._saveCurrentPostureWithName(POS_ID, POS_NAME)
 
         # add neighbouring postures
         stand_pos_id = self.posture._getIdFromName("Stand")
-        self.posture._addNeighbourToPosture(stand_pos_id, pos_id, 1)
-        self.posture._addNeighbourToPosture(pos_id, stand_pos_id, 1)
+        self.posture._addNeighbourToPosture(stand_pos_id, POS_ID, 1)
+        self.posture._addNeighbourToPosture(POS_ID, stand_pos_id, 1)
 
         # save posture
-        self.posture._savePostureLibrary(pos_file_name)
+        self.posture._savePostureLibrary(POS_FILE_NAME)
 
         # load posture
-        self.posture._loadPostureLibraryFromName(pos_file_name)
+        self.posture._loadPostureLibraryFromName(POS_FILE_NAME)
         self.posture._generateCartesianMap()
 
         # play new posture
         self.posture.goToPosture("Stand", 0.5)
-        self.posture.goToPosture(pos_name, 0.5)
+        self.posture.goToPosture(POS_NAME, 0.5)
 
 
 if __name__ == "__main__":

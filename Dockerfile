@@ -87,5 +87,6 @@ RUN pip install -r /root/requirements.txt
 WORKDIR /root/source
 
 # docker run -it --name pepper --net=host --env="DISPLAY" --volume="$HOME/.Xauthority:/root/.Xauthority:rw"  --device=/dev/input/* -v ${PWD}/source:/root/source lab42
+# xhost  +local:root
 # docker start pepper
 # docker attach pepper
