@@ -2,7 +2,7 @@
 import qi
 import argparse
 import sys
-
+from pynput import keyboard
 import time
 
 
@@ -22,25 +22,15 @@ class Speaker(object):
         self.voiceLines()
 
     def voiceLines(self):
-        # 1
-        self.tts.say(
-            "Dit is allemaal heel interessant, maar ik kan niet wachten \
+        lines = ["Dit is allemaal heel interessant, maar ik kan niet wachten \
             totdat de bouw gaat beginnen! \
             \\pau=800\\ \
             Ik wil daarom nu de eerste paal gaan slaan. \
             \\pau=800\\ \
-            Gaan jullie mee?"
-        )
-        time.sleep(2)
+            Gaan jullie mee?",
 
-        #  2
-        self.tts.say(
-            "Ja\\emph=200\\, Ik krijg inderdaad mijn eigen robotlab."
-        )
-        time.sleep(2)
+            "Ja\\emph=200\\, Ik krijg inderdaad mijn eigen robotlab.",
 
-        # 3
-        self.tts.say(
             "Ik ga zelf leren op afstand koorts te meten, dat is handig \
             bij bijvoorbeeld een Coronacrisis, \
             \\pau=600\\ \
@@ -52,12 +42,8 @@ class Speaker(object):
             \\pau=800\\ \
             En dat lab moet wel snel gebouwd worden. \
             \\pau=500\\ \
-            Dus kom, laten we de eerste paal gaan slaan!"
-        )
-        time.sleep(2)
+            Dus kom, laten we de eerste paal gaan slaan!",
 
-        # 4
-        self.tts.say(
             "De eerste paal is geslagen, laat de bouw beginnen! \
             \\pau=800\\ \
             En daar mag op gedronken worden! \
@@ -65,7 +51,52 @@ class Speaker(object):
             \\pau=800\\ \
             Ik drink natuurlijk zelf niet, \
             dus ik ga graag op de foto met wie dat wil."
-        )
+            ]
+
+
+        # self.tts.say(
+        #     "Dit is allemaal heel interessant, maar ik kan niet wachten \
+        #     totdat de bouw gaat beginnen! \
+        #     \\pau=800\\ \
+        #     Ik wil daarom nu de eerste paal gaan slaan. \
+        #     \\pau=800\\ \
+        #     Gaan jullie mee?"
+        # )
+        # time.sleep(2)
+
+        # #  2
+        # self.tts.say(
+        #     "Ja\\emph=200\\, Ik krijg inderdaad mijn eigen robotlab."
+        # )
+        # time.sleep(2)
+
+        # # 3
+        # self.tts.say(
+        #     "Ik ga zelf leren op afstand koorts te meten, dat is handig \
+        #     bij bijvoorbeeld een Coronacrisis, \
+        #     \\pau=600\\ \
+        #     en de \\toi=lhp\\n`@Ou\\toi=orth\\ robots zijn natuurlijk aan het trainen \
+        #     voor het wereldkampioenschap voetbal. \
+        #     \\pau=1000\\ \
+        #     Maar bovenop dat hele nieuwe robotlab komt het hele Lab42, \
+        #     vol met innovatie. \
+        #     \\pau=800\\ \
+        #     En dat lab moet wel snel gebouwd worden. \
+        #     \\pau=500\\ \
+        #     Dus kom, laten we de eerste paal gaan slaan!"
+        # )
+        # time.sleep(2)
+
+        # # 4
+        # self.tts.say(
+        #     "De eerste paal is geslagen, laat de bouw beginnen! \
+        #     \\pau=800\\ \
+        #     En daar mag op gedronken worden! \
+        #     Ik nodig iedereen uit voor een borrel.\
+        #     \\pau=800\\ \
+        #     Ik drink natuurlijk zelf niet, \
+        #     dus ik ga graag op de foto met wie dat wil."
+        # )
 
 
 if __name__ == "__main__":

@@ -43,23 +43,36 @@ class Joints(object):
             functools.partial(self.onTouched, "TouchChanged"))
 
     def isTouched(self):
-        return self.memoryService.getData("Device/SubDeviceList/LHand/Touch/Back/Sensor/Value")
+        touches = self.memoryService.getListData(["Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value",
+                                                  "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value",
+                                                  "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value",
+                                                  "Device/SubDeviceList/Head/Touch/Rear/Sensor/Value",
+                                                  "Device/SubDeviceList/Head/Touch/Middle/Sensor/Value",
+                                                  "Device/SubDeviceList/Head/Touch/Front/Sensor/Value"])
+        if sum(touches):
+            return False
+        else:
+            return True
 
     def move(self):
         print("Moving")
-        # print(self.postureService.goToPosture("walkByHand", 0.5))
+
         self.motionService.moveInit()
         self.awarenessService.setTrackingMode("Head")
         self.motionService.setCollisionProtectionEnabled("Arms", False)
         self.motionService.setExternalCollisionProtectionEnabled("All", False)
         self.awarenessService.resumeAwareness()
         self.awarenessService.setEnabled(True)
-        print(self.awarenessService.isEnabled())
         self.awarenessService.setStimulusDetectionEnabled("Touch", False)
+        self.postureService.goToPosture("walkByHand", 0.5)
+
+        while not self.postureService._isRobotInPosture("walkByHand", 26, 2):
+            continue
 
         print("start")
         while True:
             # print(self.awarenessService.isAwarenessPaused())
+            print(self.handToScalar())
             try:
                 self.motionService.setAngles("LArm", [0, 0, 0, 0, 0, 0], 0.1)
                 self.motionService.setStiffnesses(
@@ -70,6 +83,7 @@ class Joints(object):
                         self.elbowToScalar(), 0, self.wristToScalar())
                 else:
                     self.motionService.stopMove()
+                    break
             except KeyboardInterrupt:
                 print("\nstopped")
                 break
@@ -79,8 +93,11 @@ class Joints(object):
         self.motionService.setExternalCollisionProtectionEnabled("All", True)
         # self.motionService.setStiffnesses("LArm", 0)
         self.postureService.goToPosture("Stand", 0.5)
-        self.awarenessService.setServiceEnabled("Touch", True)
+        self.awarenessService.setStimulusDetectionEnabled("Touch", True)
         self.awarenessService.setTrackingMode("MoveContextually")
+
+    def handToScalar(self):
+        return self.motionService.getAngles("LArm", True)[5]
 
     def elbowToScalar(self):
         e_angle = -self.motionService.getAngles("LArm", True)[3] * COEFF

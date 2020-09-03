@@ -93,12 +93,17 @@ class Lab42(object):
             self.motionService.stopMove()
             self.running = False
 
-    def holdPose(self, poseName):
+    def holdPose(self, poseName, speed):
         cp = self.motionService.getCollisionProtectionEnabled("Arms")
         self.motionService.setCollisionProtectionEnabled("Arms", True)
-        self.postureService.goToPosture(poseName)
+        self.postureService.goToPosture(poseName, 0.5)
 
-        ##
+        while not self.postureService._isRobotInPosture(poseName, 26, 2):
+            continue
+
+        while not self.isTouched():
+            angles = self.motionService.getAngles("Body")
+            self.motionService.setAngles("Body", angles)
 
         self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
@@ -211,6 +216,18 @@ class Lab42(object):
 
         self.id = self.touch.signal.connect(
             functools.partial(self.onTouched, "TouchChanged"))
+
+    def isTouched(self):
+        touches = self.memoryService.getListData(["Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value",
+                                                  "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value",
+                                                  "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value",
+                                                  "Device/SubDeviceList/Head/Touch/Rear/Sensor/Value",
+                                                  "Device/SubDeviceList/Head/Touch/Middle/Sensor/Value",
+                                                  "Device/SubDeviceList/Head/Touch/Front/Sensor/Value"])
+        if sum(touches):
+            return False
+        else:
+            return True
 
 
 if __name__ == "__main__":

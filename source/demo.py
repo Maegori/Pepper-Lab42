@@ -4,40 +4,22 @@ import argparse
 import functools
 import sys
 import time
-import pickle
-import numpy as np
+import io
 import struct
+import math
 import threading
 
-from pynput import keyboard
-
 from xbone import Xbone
-
 
 MID_FRONT = 8
 DETECTION_RANGE = 1.5
 TARGET_DISTANCE = 0.42
 
-A_BUTTON_ON = 65537
-A_BUTTON_OFF = 65536
 
-B_BUTTON_ON = 16842753
-B_BUTTON_OFF = 16842752
-
-EVENT_FORMAT = str('llHHi')
-EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
-
-PATH = "/dev/input/js0"
-SIZE = 100
-
-X = [50495398]
-Y = [67272614]
-
-
-class Navigator(object):
+class Lab42(object):
 
     def __init__(self, app):
-        super(Navigator, self).__init__()
+        super(Lab42, self).__init__()
         app.start()
         session = app.session
 
@@ -68,122 +50,82 @@ class Navigator(object):
         self.tts.setParameter("pitchShift", 1.1)
         self.tts.setParameter("speed", 90)
 
-        # Movement fields
-        self.x = 0
-        self.theta = 0
-        self.listener = None
-
-        self.controller = Xbone('/dev/input/js0')
+        # Input handling
+        self.running = True
+        #self.controller = Xbone('/dev/input/js1')
 
         # Run behaviour
-        self.remoteControlled()
+        print("Start Demo")
+        self.test()
 
-    def onBlocked(self, strVarName, value):
-        """Print information when movement is blocked."""
+    def test(self):
+        print("start")
+        self.holdPose("StandZero", 0.5, ["Head", "Feet", "LHand", "RHand"])
+        print("end")
+        self.postureService.goToPosture("Stand", 0.5)
 
-        print(
-            "[FAIL] -- CAUSE={}, STATUS={}, LOCATION={}"
-            .format(value[0], value[1], value[2])
-        )
-
-    def onTouched(self, strVarName, value):
-        self.touch.signal.disconnect(self.id)
-
-        arms = set(["LArm", "RArm"])
-        parts = set()
-
-        for p in value:
-            if p[1]:
-                parts.add(p[0])
-
-        if arms.intersection(parts):
-            # self.tts.say("Gaan we op een wandeling?")
-            self.motionService.setStiffnesses(arms, 0.1)
-        else:
-            self.motionService.setStiffnesses(arms, 1)
-
-        self.id = self.touch.signal.connect(
-            functools.partial(self.onTouched, "TouchChanged"))
-
-    def onPress(self, key):
-        """Keyboard controls"""
-        x, theta = self.x, self.theta
-        speed = 1
-
-        if key == keyboard.Key.up:
-            self.x = speed
-        elif key == keyboard.Key.down:
-            self.x = -speed
-        elif key == keyboard.Key.right:
-            self.theta = -speed
-        elif key == keyboard.Key.left:
-            self.theta = speed
-
-        if self.x != x or self.theta != theta:
-            print(
-                "[MOVING] -- {}, {}".format(self.x, self.theta)
-            )
-            self.motionService.moveToward(self.x, 0, self.theta)
-
-    def onRelease(self, key):
-        """Keyboard controls"""
-        x, theta = self.x, self.theta
-
-        if key == keyboard.Key.down or key == keyboard.Key.up:
-            self.x = 0
-        if key == keyboard.Key.right or key == keyboard.Key.left:
-            self.theta = 0
-
-        if not self.x and not self.theta:
-            self.motionService.stopMove()
-        if self.x != x or self.theta != theta:
-            self.motionService.moveToward(self.x, 0, self.theta)
-
-        if key == keyboard.Key.space:
-            self.motionService.stopMove()
-            self.listener.stop()
-            self.remoteControlled()
-        if key == keyboard.Key.esc:
-            print("Exiting remote controlled mode")
-            self.motionService.stopMove()
-            self.listener.stop()
-            return False
-
-    def remoteControlled(self):
-        """Controller controls"""
-        arms = set(["LArm", "RArm"])
+    def demo(self):
+        """Main control loop."""
 
         self.motionService.wakeUp()
         self.motionService.setOrthogonalSecurityDistance(0.1)
         self.motionService.setCollisionProtectionEnabled("Arms", False)
-        self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
-        self.awarenessService.setTrackingMode("WholeBody")
+        self.motionService.setExternalCollisionProtectionEnabled("All", False)
+        self.awarenessService.setTrackingMode("Head")
         self.motionService.moveInit()
-
-        print("start")
 
         t = threading.Thread(target=self.controller.read)
         t.deamon = True
         t.start()
 
-        while True:
-            time.sleep(0.01)
-            self.motionService.moveToward(-self.controller.request_axis('ry'), 0, -self.controller.request_axis('rx'))
-            if self.controller.request_button('a'):
-                self.motionService.stopMove()
-                self.motionService.rest()
-                self.alignHit()
-            elif self.controller.request_button('b'):
-                self.motionService.stopMove()
-                self.motionService.rest()
-                break
-                
+        while self.running:
+            time.sleep(0.001)
+            self.handleEvents()
+
+        self.motionService.setOrthogonalSecurityDistance(0.4)
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.motionService.setExternalCollisionProtectionEnabled(
+            "All", True)
+        self.awarenessService.setTrackingMode("MoveContextually")
+        self.motionService.rest()
+
+    def handleEvents(self):
+        self.motionService.moveToward(-self.controller.request_axis(
+            'ry'), 0, -self.controller.request_axis('rx'))
+        if self.controller.request_button('a'):
+            self.motionService.stopMove()
+            self.running = False
+        elif self.controller.request_button('b'):
+            self.motionService.stopMove()
+            self.running = False
+
+    def holdPose(self, poseName, speed, chains):
+        """
+        Stays in specified pose until one of the sensors in the chains is touched.
+        """
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.postureService.goToPosture(poseName, speed)
+
+        while not self.postureService._isRobotInPosture(poseName, 26, 2):
+            continue
+
+        while not self.isTouched(chains):
+            angles = self.motionService.getAngles("Body", True)
+            self.motionService.setAngles("Body", angles, speed)
+
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
         self.awarenessService.setTrackingMode("WholeBody")
+
+        # wait for confirmation
         self.align()
         self.animate()
+
+        # post animation behaviour
+
         self.awarenessService.setTrackingMode("MoveContextually")
         # self.motionService.rest()
 
@@ -253,13 +195,74 @@ class Navigator(object):
             self.motionService.moveToward(0.3, 0, 0)
             scan = self.memoryService.getListData(keys)
 
-            # if d > DETECTION_RANGE:
-            #     self.motionService.stopMove()
-            #     return searchflag?
-
         self.motionService.stopMove()
         print("In range of target")
         return np.argmin(scan)
+
+    def onBlocked(self, strVarName, value):
+        """Print information when movement is blocked."""
+
+        print(
+            "[FAIL] -- CAUSE={}, STATUS={}, LOCATION={}"
+            .format(value[0], value[1], value[2])
+        )
+
+    def onTouched(self, strVarName, value):
+        self.touch.signal.disconnect(self.id)
+
+        arms = set(["LArm", "RArm"])
+        parts = set()
+
+        for p in value:
+            if p[1]:
+                parts.add(p[0])
+
+        if arms.intersection(parts):
+            # self.tts.say("Gaan we op een wandeling?")
+            self.motionService.setStiffnesses(arms, 0.1)
+        else:
+            self.motionService.setStiffnesses(arms, 1)
+
+        self.id = self.touch.signal.connect(
+            functools.partial(self.onTouched, "TouchChanged"))
+
+    def isTouched(self, chains):
+        """
+        Returns True if any of the sensors in the specified chains
+        is touched else False.
+
+        Available chains are {"All", "Feet", "Head", "Arms", "LHand", "RHand"}
+        """
+
+        parts = [
+            "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Rear/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Middle/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Front/Sensor/Value",
+            "Device/SubDeviceList/LHand/Touch/Back/Sensor/Value",
+            "Device/SubDeviceList/RHand/Touch/Back/Sensor/Value"
+        ]
+
+        p = []
+
+        for c in chains:
+            if c == "All":
+                p = parts
+                break
+            elif c == "Feet":
+                p += parts[:3]
+            elif c == "Head":
+                p += parts[3:6]
+            elif c == "Arms":
+                p += parts[6:]
+            elif c == "LHand":
+                p += [parts[6]]
+            elif c == "RHand":
+                p += [parts[7]]
+
+        return sum(self.memoryService.getListData(p)) > 0
 
 
 if __name__ == "__main__":
@@ -282,9 +285,5 @@ if __name__ == "__main__":
 
     print("Succesfully connected to Pepper @ tcp://" +
           args.ip + ":" + str(args.port))
-    nav = Navigator(app)
+    nav = Lab42(app)
     app.run()
-
-
-# Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value
-# Device/SubDeviceList/Pla`tform/Back/Sonar/Sensor/Value
