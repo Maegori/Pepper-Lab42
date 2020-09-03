@@ -93,38 +93,25 @@ class Lab42(object):
             self.motionService.stopMove()
             self.running = False
 
-    def onBlocked(self, strVarName, value):
-        """Print information when movement is blocked."""
+    def holdPose(self, poseName):
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.postureService.goToPosture(poseName)
 
-        print(
-            "[FAIL] -- CAUSE={}, STATUS={}, LOCATION={}"
-            .format(value[0], value[1], value[2])
-        )
+        ##
 
-    def onTouched(self, strVarName, value):
-        self.touch.signal.disconnect(self.id)
-
-        arms = set(["LArm", "RArm"])
-        parts = set()
-
-        for p in value:
-            if p[1]:
-                parts.add(p[0])
-
-        if arms.intersection(parts):
-            # self.tts.say("Gaan we op een wandeling?")
-            self.motionService.setStiffnesses(arms, 0.1)
-        else:
-            self.motionService.setStiffnesses(arms, 1)
-
-        self.id = self.touch.signal.connect(
-            functools.partial(self.onTouched, "TouchChanged"))
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
         self.awarenessService.setTrackingMode("WholeBody")
+
+        # wait for confirmation
         self.align()
         self.animate()
+
+        # post animation behaviour
+
         self.awarenessService.setTrackingMode("MoveContextually")
         # self.motionService.rest()
 
@@ -198,6 +185,33 @@ class Lab42(object):
         print("In range of target")
         return np.argmin(scan)
 
+    def onBlocked(self, strVarName, value):
+        """Print information when movement is blocked."""
+
+        print(
+            "[FAIL] -- CAUSE={}, STATUS={}, LOCATION={}"
+            .format(value[0], value[1], value[2])
+        )
+
+    def onTouched(self, strVarName, value):
+        self.touch.signal.disconnect(self.id)
+
+        arms = set(["LArm", "RArm"])
+        parts = set()
+
+        for p in value:
+            if p[1]:
+                parts.add(p[0])
+
+        if arms.intersection(parts):
+            # self.tts.say("Gaan we op een wandeling?")
+            self.motionService.setStiffnesses(arms, 0.1)
+        else:
+            self.motionService.setStiffnesses(arms, 1)
+
+        self.id = self.touch.signal.connect(
+            functools.partial(self.onTouched, "TouchChanged"))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -221,7 +235,3 @@ if __name__ == "__main__":
           args.ip + ":" + str(args.port))
     nav = Lab42(app)
     app.run()
-
-
-# Device/SubDeviceList/Platform/Front/Sonar/Sensor/Value
-# Device/SubDeviceList/Pla`tform/Back/Sonar/Sensor/Value
