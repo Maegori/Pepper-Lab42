@@ -4,30 +4,16 @@ import argparse
 import functools
 import sys
 import time
-import pickle
-import numpy as np
+import io
 import struct
+import math
+import threading
 
-from pynput import keyboard
+from xbone import Xbone
 
 MID_FRONT = 8
 DETECTION_RANGE = 1.5
 TARGET_DISTANCE = 0.42
-
-A_BUTTON_ON = 65537
-A_BUTTON_OFF = 65536
-
-B_BUTTON_ON = 16842753
-B_BUTTON_OFF = 16842752
-
-EVENT_FORMAT = str('llHHi')
-EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
-
-PATH = "/dev/input/js0"
-SIZE = 100
-
-X = [50495398]
-Y = [67272614]
 
 
 class Lab42(object):
@@ -65,37 +51,47 @@ class Lab42(object):
         self.tts.setParameter("speed", 90)
 
         # Input handling
-        self.active = True
-        self.listener = keyboard.Listener(
-            on_press=self.onPress,
-            on_release=self.onRelease
-        )
+        self.running = True
+        self.controller = Xbone('/dev/input/js1')
 
         # Run behaviour
+        print("Start Demo")
         self.demo()
 
     def demo(self):
         """Main control loop."""
 
-        # Disable security features
         self.motionService.wakeUp()
-        self.motionService.moveInit()
         self.motionService.setOrthogonalSecurityDistance(0.1)
         self.motionService.setCollisionProtectionEnabled("Arms", False)
         self.motionService.setExternalCollisionProtectionEnabled("All", False)
-        self.awarenessService.setTrackingMode("WholeBody")
+        self.awarenessService.setTrackingMode("Head")
+        self.motionService.moveInit()
 
-        while self.active:
+        t = threading.Thread(target=self.controller.read)
+        t.deamon = True
+        t.start()
+
+        while self.running:
+            time.sleep(0.001)
             self.handleEvents()
 
-        # Reactivate security and go to Autonomous life
-        self.motionService.setExternalCollisionProtectionEnabled("All", True)
-        self.motionService.setCollisionProtectionEnabled("Arms", True)
         self.motionService.setOrthogonalSecurityDistance(0.4)
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.motionService.setExternalCollisionProtectionEnabled(
+            "All", True)
         self.awarenessService.setTrackingMode("MoveContextually")
+        self.motionService.rest()
 
     def handleEvents(self):
-        pass
+        self.motionService.moveToward(-self.controller.request_axis(
+            'ry'), 0, -self.controller.request_axis('rx'))
+        if self.controller.request_button('a'):
+            self.motionService.stopMove()
+            self.running = False
+        elif self.controller.request_button('b'):
+            self.motionService.stopMove()
+            self.running = False
 
     def onBlocked(self, strVarName, value):
         """Print information when movement is blocked."""
@@ -123,125 +119,6 @@ class Lab42(object):
 
         self.id = self.touch.signal.connect(
             functools.partial(self.onTouched, "TouchChanged"))
-
-    def onPress(self, key):
-        """Keyboard controls"""
-        x, theta = self.x, self.theta
-        speed = 1
-
-        if key == keyboard.Key.up:
-            self.x = speed
-        elif key == keyboard.Key.down:
-            self.x = -speed
-        elif key == keyboard.Key.right:
-            self.theta = -speed
-        elif key == keyboard.Key.left:
-            self.theta = speed
-
-        if self.x != x or self.theta != theta:
-            print(
-                "[MOVING] -- {}, {}".format(self.x, self.theta)
-            )
-            self.motionService.moveToward(self.x, 0, self.theta)
-
-    def onRelease(self, key):
-        """Keyboard controls"""
-        x, theta = self.x, self.theta
-
-        if key == keyboard.Key.down or key == keyboard.Key.up:
-            self.x = 0
-        if key == keyboard.Key.right or key == keyboard.Key.left:
-            self.theta = 0
-
-        if not self.x and not self.theta:
-            self.motionService.stopMove()
-        if self.x != x or self.theta != theta:
-            self.motionService.moveToward(self.x, 0, self.theta)
-
-        if key == keyboard.Key.space:
-            self.motionService.stopMove()
-            self.listener.stop()
-            self.remoteControlled()
-        if key == keyboard.Key.esc:
-            print("Exiting remote controlled mode")
-            self.motionService.stopMove()
-            self.listener.stop()
-            return False
-
-    def remoteControlled(self):
-        """Controller controls"""
-        arms = set(["LArm", "RArm"])
-
-        self.motionService.wakeUp()
-        # self.motionService.setOrthogonalSecurityDistance(0.1)
-        self.motionService.setCollisionProtectionEnabled("Arms", False)
-        self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
-        self.awarenessService.setTrackingMode("WholeBody")
-        self.motionService.moveInit()
-
-        print("start")
-
-        with open(PATH, 'rb')as f:
-            for i in range(6):
-                struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
-
-            while True:
-                data = struct.unpack(EVENT_FORMAT, f.read(EVENT_SIZE))
-
-                if data[4] < 50528251 and data[4] > 50462730:
-                    X.append(data[4])
-                    Y.append(Y[-1])
-
-                    x = round(float(X[-1] - 50495398) / 32678, 1)
-                    y = round(float(Y[-1] - 67272614) / 32678, 1)
-
-                    x = 1 + x if x < 0 else x - 1
-                    y = -(y + 1) if y < 0 else 1 - y
-
-                    print(round(x, 2), round(y, 2))
-                    self.motionService.moveToward(
-                        round(y, 2), 0, round(-x / 2, 2))
-
-                elif data[4] < 67305465 and data[4] > 67239936:
-                    Y.append(data[4])
-                    X.append(X[-1])
-
-                    x = round(float(X[-1] - 50495398) / 32678, 1)
-                    y = round(float(Y[-1] - 67272614) / 32678, 1)
-
-                    x = 1 + x if x < 0 else x - 1
-                    y = -(y + 1) if y < 0 else 1 - y
-
-                    print(round(x, 2), round(y, 2))
-                    self.motionService.moveToward(
-                        round(y, 2), 0, round(-x / 2, 2))
-                elif data[4] == A_BUTTON_ON or data[4] == A_BUTTON_OFF:
-                    self.motionService.stopMove()
-                    self.alignHit()
-                elif data[4] == B_BUTTON_ON or data[4] == B_BUTTON_OFF:
-                    self.motionService.stopMove()
-                    self.motionService.rest()
-                    break
-
-        # print("Start")
-        # # Blocking
-        # with keyboard.Listener(
-        #     on_press=self.onPress,
-        #     on_release=self.onRelease
-        # ) as self.listener:
-        #     self.listener.join()
-
-        # # Non-blocking
-        # self.listener = keyboard.Listener(
-        #     on_press=self.onPress,
-        #     on_release=self.onRelease
-        # )
-        # self.listener.start()
-
-        # self.motionService.setExternalCollisionProtectionEnabled("All", True)
-        # self.motionService.setCollisionProtectionEnabled("Arms", True)
-        # self.motionService.setOrthogonalSecurityDistance(0.4)
-        # self.awarenessService.setTrackingMode("MoveContextually")
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
@@ -316,10 +193,6 @@ class Lab42(object):
         while min(scan) > TARGET_DISTANCE:
             self.motionService.moveToward(0.3, 0, 0)
             scan = self.memoryService.getListData(keys)
-
-            # if d > DETECTION_RANGE:
-            #     self.motionService.stopMove()
-            #     return searchflag?
 
         self.motionService.stopMove()
         print("In range of target")

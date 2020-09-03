@@ -11,14 +11,6 @@ import threading
 
 from xbone import Xbone
 
-EVENT_FORMAT = str('llHHi')
-EVENT_SIZE = struct.calcsize(EVENT_FORMAT)
-
-PATH = "/dev/input/js0"
-
-X = [50495398]
-Y = [67272614]
-
 
 class Navigator(object):
 
@@ -35,19 +27,17 @@ class Navigator(object):
         self.laserService = session.service("ALLaser")
         self.awarenessService = session.service("ALBasicAwareness")
         self.controller = Xbone('/dev/input/js0')
-        print("hello")
         self.move()
-
 
     def move(self):
         self.motionService.wakeUp()
         self.motionService.setOrthogonalSecurityDistance(0.1)
         self.motionService.setCollisionProtectionEnabled("Arms", False)
-        self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
+        self.motionService.setExternalCollisionProtectionEnabled("All", False)
         self.awarenessService.setTrackingMode("WholeBody")
         self.motionService.moveInit()
 
-        print("start")
+        print("Start")
 
         t = threading.Thread(target=self.controller.read)
         t.deamon = True
@@ -55,7 +45,8 @@ class Navigator(object):
 
         while True:
             time.sleep(0.01)
-            self.motionService.moveToward(-self.controller.request_axis('ry'), 0, -self.controller.request_axis('rx'))
+            self.motionService.moveToward(-self.controller.request_axis(
+                'ry'), 0, -self.controller.request_axis('rx'))
             if self.controller.request_button('a'):
                 self.motionService.stopMove()
                 self.motionService.rest()
@@ -65,7 +56,12 @@ class Navigator(object):
                 self.motionService.rest()
                 break
 
-    
+        self.motionService.setOrthogonalSecurityDistance(0.4)
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.motionService.setExternalCollisionProtectionEnabled("All", True)
+        self.awarenessService.setTrackingMode("MovecContextually")
+        self.motionService.rest()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

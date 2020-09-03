@@ -20,13 +20,14 @@ class Joints(object):
 
         self.lifeService.setAutonomousAbilityEnabled("All", False)
         self.touch = self.memoryService.subscriber("TouchChanged")
-        self.id = self.touch.signal.connect(functools.partial(self.onTouched, "TouchChanged"))
+        self.id = self.touch.signal.connect(
+            functools.partial(self.onTouched, "TouchChanged"))
 
         self.motionService.wakeUp()
         self.frozen = True
 
         self.move()
-    
+
     def onTouched(self, strVarName, value):
         self.touch.signal.disconnect(self.id)
         print("touched")
@@ -35,8 +36,9 @@ class Joints(object):
             if p[1] and p[0] == "LArm":
                 self.frozen = False
                 return
-        
-        self.id = self.touch.signal.connect(functools.partial(self.onTouched, "TouchChanged"))
+
+        self.id = self.touch.signal.connect(
+            functools.partial(self.onTouched, "TouchChanged"))
 
     def move(self):
         print("Moving")
@@ -46,14 +48,13 @@ class Joints(object):
         # self.awarenessService.setTrackingMode("Head")
         self.motionService.setCollisionProtectionEnabled("Arms", False)
         self.motionService.setExternalCollisionProtectionEnabled("All", False)
-        
 
         print("Moooo")
         #self.motionService.setStiffnesses("LArm", [1, 1, 1, 0, 0, 1])
         # elbow = 3
         # wrist = 4
 
-        # rad_conv = 180 / math.pi
+        # c = 180 / math.pi
 
         # print("start")
         # while True:
@@ -67,7 +68,8 @@ class Joints(object):
         self.motionService.stopMove()
         self.motionService.setCollisionProtectionEnabled("Arms", True)
         self.motionService.setExternalCollisionProtectionEnabled("All", True)
-        #self.awarenessService.setTrackingMode("MoveContextually")
+        # self.awarenessService.setTrackingMode("MoveContextually")
+
 
 if __name__ == "__main__":
 
@@ -76,7 +78,8 @@ if __name__ == "__main__":
                         help="Robot IP address. On robot or Local Naoqi: use '146.50.60.38'.")
     parser.add_argument("--port", type=int, default=9559,
                         help="Naoqi port number")
-    parser.add_argument("--animation", type=str, help="Name of the animation to play")
+    parser.add_argument("--animation", type=str,
+                        help="Name of the animation to play")
 
     args = parser.parse_args()
     try:
@@ -84,10 +87,11 @@ if __name__ == "__main__":
         connection_url = "tcp://" + args.ip + ":" + str(args.port)
         app = qi.Application(["Swing", "--qi-url=" + connection_url])
     except RuntimeError:
-        print ("Can't connect to Naoqi at ip \"" + args.ip + "\" on port " + str(args.port) +".\n"
-               "Please check your script arguments. Run with -h option for help.")
+        print("Can't connect to Naoqi at ip \"" + args.ip + "\" on port " + str(args.port) + ".\n"
+              "Please check your script arguments. Run with -h option for help.")
         sys.exit(1)
 
-    print("Succesfully connected to Pepper @ tcp://" + args.ip + ":" + str(args.port))
+    print("Succesfully connected to Pepper @ tcp://" +
+          args.ip + ":" + str(args.port))
     j = Joints(app)
     app.run()
