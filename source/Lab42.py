@@ -8,9 +8,12 @@ import io
 import struct
 import math
 import threading
+import pickle
 
+import numpy as np
 from xbone import Xbone
 
+COEFF = 180 / math.pi
 MID_FRONT = 8
 DETECTION_RANGE = 1.5
 TARGET_DISTANCE = 0.42
@@ -63,7 +66,7 @@ class Lab42(object):
 
         self.motionService.wakeUp()
         self.motionService.setOrthogonalSecurityDistance(0.1)
-        self.motionService.setCollisionProtectionEnabled("Arms", False)
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
         self.motionService.setExternalCollisionProtectionEnabled("All", False)
         self.awarenessService.setTrackingMode("Head")
         self.motionService.moveInit()
@@ -82,42 +85,103 @@ class Lab42(object):
             "All", True)
         self.awarenessService.setTrackingMode("MoveContextually")
         self.motionService.rest()
+        print("Closing App.")
 
     def handleEvents(self):
         self.motionService.moveToward(-self.controller.request_axis(
             'ry'), 0, -self.controller.request_axis('rx'))
         if self.controller.request_button('a'):
+            self.alignHit()
             self.motionService.stopMove()
-            self.running = False
-        elif self.controller.request_button('b'):
+        elif self.controller.request_button('y'):
+            self.guidedMove()
             self.motionService.stopMove()
+        elif self.controller.request_button('select'):
+            self.motionService.stopMove()
+            self.motionService.rest()
             self.running = False
 
-    def holdPose(self, poseName, speed):
-        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+    def guidedMove(self):
+        print("Guided mode active.")
+        self.motionService.setSmartStiffnessEnabled(False)
+        self.motionService.moveInit()
+        tm = self.awarenessService.getTrackingMode()
+        self.awarenessService.setTrackingMode("Head")
+        self.motionService.setCollisionProtectionEnabled("Arms", False)
+        self.motionService.setExternalCollisionProtectionEnabled("All", False)
+        self.awarenessService.resumeAwareness()
+        self.awarenessService.setEnabled(True)
+        self.awarenessService.setStimulusDetectionEnabled("Touch", False)
+        #self.postureService.goToPosture("walkByHand", 0.5)
+
+        self.holdPose("Stand", 0.5, ["All"])
+        print("start")
+        while True:
+            try:
+                self.motionService.setAngles(
+                    "LArm", [-0.25, 0.2, -2.0857, 0, 0, 0.4], 0.1)
+                self.motionService.setStiffnesses(
+                    "LArm", [0.6, 0.1, 0, 0, 0, 0])
+                if self.handToScalar() > 0.6:
+                    self.motionService.moveToward(
+                        self.elbowToScalar(), 0, self.wristToScalar())
+                else:
+                    self.motionService.stopMove()
+
+            except KeyboardInterrupt:
+                print("\nstopped")
+                break
+        self.motionService.setStiffnesses(
+            "LArm", [0.2, 0.2, 0, 0, 0, 0])
+        self.motionService.stopMove()
         self.motionService.setCollisionProtectionEnabled("Arms", True)
-        self.postureService.goToPosture(poseName, 0.5)
+        self.motionService.setExternalCollisionProtectionEnabled("All", True)
+        self.postureService.goToPosture("Stand", 0.5)
+        self.awarenessService.setStimulusDetectionEnabled("Touch", True)
+        self.awarenessService.setTrackingMode(tm)
+        self.motionService.setSmartStiffnessEnabled(True)
 
-        while not self.postureService._isRobotInPosture(poseName, 26, 2):
-            continue
+    def handToScalar(self):
+        return self.motionService.getAngles("LArm", True)[5]
 
-        while not self.isTouched():
-            angles = self.motionService.getAngles("Body")
-            self.motionService.setAngles("Body", angles)
+    def elbowToScalar(self):
+        e_angle = -self.motionService.getAngles("LArm", True)[3] * COEFF
+        e_angle -= 0.5
+        theta = 60.0
 
-        self.motionService.setCollisionProtectionEnabled("Arms", cp)
+        if e_angle < theta:
+            return round(1 - (e_angle / theta), 1)
+        else:
+            return 0.0
+
+    def wristToScalar(self):
+        w_angle = self.motionService.getAngles("LArm", True)[4] * COEFF
+        theta = 14.5
+        if not (-theta < w_angle < theta):
+            return -round(w_angle / 104.5, 1)
+        else:
+            return 0.0
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
+        tm = self.awarenessService.getTrackingMode()
         self.awarenessService.setTrackingMode("WholeBody")
-
-        # wait for confirmation
+        print("Waiting for confirmation to align and hit.")
+        self.holdPose("StandZero", 0.5, ["All"])
+        self.postureService.goToPosture("Stand", 0.5)
         self.align()
         self.animate()
+        print("Waiting for confirmation to release the hammer.")
+        self.holdCustomPose(
+            "RArm",
+            [0.80, -0.29, 1.61, 1.05, 1.55, 0],
+            [0.2, 0.2, 0.2, 0.2, 0.2, 1],
+            0.1,
+            ["RHand"],
+            False
+        )
 
-        # post animation behaviour
-
-        self.awarenessService.setTrackingMode("MoveContextually")
+        self.awarenessService.setTrackingMode(tm)
         # self.motionService.rest()
 
     def align(self):
@@ -163,7 +227,7 @@ class Lab42(object):
         keys = []
         isAbsolute = True
 
-        with open("animations/"+sys.argv[2]+".pickle", "rb") as f:
+        with open("animations/swing1.pickle", "rb") as f:
             animation = pickle.load(f)
 
         for key in animation.keys():
@@ -217,17 +281,87 @@ class Lab42(object):
         self.id = self.touch.signal.connect(
             functools.partial(self.onTouched, "TouchChanged"))
 
-    def isTouched(self):
-        touches = self.memoryService.getListData(["Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value",
-                                                  "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value",
-                                                  "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value",
-                                                  "Device/SubDeviceList/Head/Touch/Rear/Sensor/Value",
-                                                  "Device/SubDeviceList/Head/Touch/Middle/Sensor/Value",
-                                                  "Device/SubDeviceList/Head/Touch/Front/Sensor/Value"])
-        if sum(touches):
-            return False
-        else:
-            return True
+    def isTouched(self, chains):
+        """
+        Returns True if any of the sensors in the specified chains
+        is touched else False.
+
+        Available chains are {"All", "Feet", "Head", "Arms", "LHand", "RHand"}
+        """
+
+        parts = [
+            "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Rear/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Middle/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Front/Sensor/Value",
+            "Device/SubDeviceList/LHand/Touch/Back/Sensor/Value",
+            "Device/SubDeviceList/RHand/Touch/Back/Sensor/Value"
+        ]
+
+        p = []
+
+        for c in chains:
+            if c == "All":
+                p = parts
+                break
+            elif c == "Feet":
+                p += parts[:3]
+            elif c == "Head":
+                p += parts[3:6]
+            elif c == "Arms":
+                p += parts[6:]
+            elif c == "LHand":
+                p += [parts[6]]
+            elif c == "RHand":
+                p += [parts[7]]
+            else:
+                raise KeyError
+
+        return sum(self.memoryService.getListData(p)) > 0
+
+    def holdPose(self, poseName, speed, chains, protection=True):
+        """
+        Stays in specified pose until one of the sensors in the chains is touched.
+        """
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+        self.motionService.setCollisionProtectionEnabled("Arms", protection)
+        self.postureService.goToPosture(poseName, speed)
+
+        print("Trying to reach posture...")
+        while not self.postureService._isRobotInPosture(poseName, 26, 2):
+            continue
+
+        print("Waiting in posture.")
+        while not self.isTouched(chains):
+            angles = self.motionService.getAngles("Body", True)
+            self.motionService.setAngles("Body", angles, speed)
+
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
+        print("Posture off.")
+
+    def holdCustomPose(self, arm, angles, stiffnesses, speed, chains, protection=True):
+        """
+        Stays in specified pose until one of the sensors in the chains is touched.
+        """
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+        self.motionService.setCollisionProtectionEnabled("Arms", protection)
+
+        print("Trying to reach posture...")
+        while True:
+            self.motionService.setAngles(arm, angles, speed, _async=False)
+            time.sleep(3)
+            current = self.motionService.getAngles("RArm", True)
+            if sum([(y-x)**2 for x, y in zip(current, angles)]) < 0.2:
+                break
+
+        print("Waiting in posture...")
+        while not self.isTouched("RArm"):
+            continue
+
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
+        print("Posture off.")
 
 
 if __name__ == "__main__":

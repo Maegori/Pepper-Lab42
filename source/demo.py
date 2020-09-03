@@ -52,7 +52,7 @@ class Lab42(object):
 
         # Input handling
         self.running = True
-        #self.controller = Xbone('/dev/input/js1')
+        # self.controller = Xbone('/dev/input/js1')
 
         # Run behaviour
         print("Start Demo")
@@ -60,9 +60,38 @@ class Lab42(object):
 
     def test(self):
         print("start")
-        self.holdPose("StandZero", 0.5, ["Head", "Feet", "LHand", "RHand"])
+        self.motionService.rest()
+        self.motionService.wakeUp()
+        self.postureService.goToPosture("StandZero", 0.5)
+        self.motionService.setStiffnesses(
+            "RArm", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        # while True:
+        #     self.motionService.setStiffnesses("RArm", [0, 0, 0, 0, 0, 0])
+        #     print(self.motionService.getAngles("RArm", True))
+
+        # self.motionService.angleInterpolation(
+        #     ["RShoulderPitch", "RShoulderRoll", "RElbowYaw",
+        #         "RElbowRoll", "RWristYaw", "RHand"],
+        #     angles,
+        #     [1.0 for _ in range(6)], True)
+        speed = 0.2
+        goal = [1, -0.5, 1.61, 1.05, 1.55, 0]
+
+        self.motionService.setAngles(
+            "RArm", goal, speed)
+
+        while True:
+            current = self.motionService.getAngles("RArm", True)
+            if sum([(y-x)**2 for x, y in zip(current, goal)]) < 0.2:
+                break
+
+        print("Waiting in pose...")
+        while not self.isTouched("RArm"):
+            continue
+
         print("end")
-        self.postureService.goToPosture("Stand", 0.5)
+        # self.postureService.goToPosture("Stand", 0.5)
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
 
     def demo(self):
         """Main control loop."""
@@ -172,7 +201,7 @@ class Lab42(object):
         keys = []
         isAbsolute = True
 
-        with open("animations/"+sys.argv[2]+".pickle", "rb") as f:
+        with open("animations/swing1.pickle", "rb") as f:
             animation = pickle.load(f)
 
         for key in animation.keys():
@@ -263,6 +292,23 @@ class Lab42(object):
                 p += [parts[7]]
 
         return sum(self.memoryService.getListData(p)) > 0
+
+    def holdPose(self, poseName, speed, chains):
+        """
+        Stays in specified pose until one of the sensors in the chains is touched.
+        """
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.postureService.goToPosture(poseName, speed)
+
+        while not self.postureService._isRobotInPosture(poseName, 26, 2):
+            continue
+
+        while not self.isTouched(chains):
+            angles = self.motionService.getAngles("Body", True)
+            self.motionService.setAngles("Body", angles, speed)
+
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
 
 if __name__ == "__main__":

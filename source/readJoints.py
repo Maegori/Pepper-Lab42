@@ -42,48 +42,32 @@ class Joints(object):
         self.id = self.touch.signal.connect(
             functools.partial(self.onTouched, "TouchChanged"))
 
-    def isTouched(self):
-        touches = self.memoryService.getListData(["Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value",
-                                                  "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value",
-                                                  "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value",
-                                                  "Device/SubDeviceList/Head/Touch/Rear/Sensor/Value",
-                                                  "Device/SubDeviceList/Head/Touch/Middle/Sensor/Value",
-                                                  "Device/SubDeviceList/Head/Touch/Front/Sensor/Value"])
-        if sum(touches):
-            return False
-        else:
-            return True
-
     def move(self):
         print("Moving")
 
         self.motionService.moveInit()
         self.awarenessService.setTrackingMode("Head")
-        self.motionService.setCollisionProtectionEnabled("Arms", False)
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
         self.motionService.setExternalCollisionProtectionEnabled("All", False)
         self.awarenessService.resumeAwareness()
         self.awarenessService.setEnabled(True)
         self.awarenessService.setStimulusDetectionEnabled("Touch", False)
-        self.postureService.goToPosture("walkByHand", 0.5)
+        #self.postureService.goToPosture("walkByHand", 0.5)
 
-        while not self.postureService._isRobotInPosture("walkByHand", 26, 2):
-            continue
-
+        self.holdPose("StandZero", 0.5, ["All"])
         print("start")
         while True:
-            # print(self.awarenessService.isAwarenessPaused())
-            print(self.handToScalar())
             try:
-                self.motionService.setAngles("LArm", [0, 0, 0, 0, 0, 0], 0.1)
+                self.motionService.setAngles(
+                    "LArm", [-0.25, 0.2, -2.0857, 0, 0, 0.4], 0.1)
                 self.motionService.setStiffnesses(
                     "LArm", [0.6, 0.1, 0, 0, 0, 0])
-                if self.isTouched():
-                    #print(-self.motionService.getAngles("LArm", True)[3] * COEFF - 0.5, self.elbowToScalar(), self.wristToScalar())
+                if self.handToScalar() > 0.6:
                     self.motionService.moveToward(
                         self.elbowToScalar(), 0, self.wristToScalar())
                 else:
                     self.motionService.stopMove()
-                    break
+
             except KeyboardInterrupt:
                 print("\nstopped")
                 break
@@ -91,10 +75,9 @@ class Joints(object):
         self.motionService.stopMove()
         self.motionService.setCollisionProtectionEnabled("Arms", True)
         self.motionService.setExternalCollisionProtectionEnabled("All", True)
-        # self.motionService.setStiffnesses("LArm", 0)
         self.postureService.goToPosture("Stand", 0.5)
         self.awarenessService.setStimulusDetectionEnabled("Touch", True)
-        self.awarenessService.setTrackingMode("MoveContextually")
+        self.awarenessService.setTrackingMode("MoveBody")
 
     def handToScalar(self):
         return self.motionService.getAngles("LArm", True)[5]
@@ -116,6 +99,63 @@ class Joints(object):
             return -round(w_angle / 104.5, 1)
         else:
             return 0.0
+
+    def isTouched(self, chains):
+        """
+        Returns True if any of the sensors in the specified chains
+        is touched else False.
+
+        Available chains are {"All", "Feet", "Head", "Arms", "LHand", "RHand"}
+        """
+
+        parts = [
+            "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Rear/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Middle/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Front/Sensor/Value",
+            "Device/SubDeviceList/LHand/Touch/Back/Sensor/Value",
+            "Device/SubDeviceList/RHand/Touch/Back/Sensor/Value"
+        ]
+
+        p = []
+
+        for c in chains:
+            if c == "All":
+                p = parts
+                break
+            elif c == "Feet":
+                p += parts[:3]
+            elif c == "Head":
+                p += parts[3:6]
+            elif c == "Arms":
+                p += parts[6:]
+            elif c == "LHand":
+                p += [parts[6]]
+            elif c == "RHand":
+                p += [parts[7]]
+
+        return sum(self.memoryService.getListData(p)) > 0
+
+    def holdPose(self, poseName, speed, chains):
+        """
+        Stays in specified pose until one of the sensors in the chains is touched.
+        """
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.postureService.goToPosture(poseName, speed)
+
+        print("Trying to reach posture...")
+        while not self.postureService._isRobotInPosture(poseName, 26, 2):
+            continue
+
+        print("Posture Reached.")
+        while not self.isTouched(chains):
+            angles = self.motionService.getAngles("Body", True)
+            self.motionService.setAngles("Body", angles, speed)
+
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
 
 if __name__ == "__main__":
