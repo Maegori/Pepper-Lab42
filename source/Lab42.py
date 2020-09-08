@@ -60,22 +60,35 @@ class Lab42(object):
         self.controller = Xbone('/dev/input/js1')
 
         # Run behaviour
-        print("Start Demo")
         self.demo()
 
     def resetSettings(self):
-        pass
+
+        stimuli = ["People", "Touch", "TabletTouch",
+                   "Sound", "Movement", "NavigationMotion"]
+
+        # Motion service
+        self.motionService.setExternalCollisionProtectionEnabled("All", True)
+        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.motionService.setSmartStiffnessEnabled(True)
+        self.motionService.setOrthogonalSecurityDistance(0.4)  # default
+        self.motionService.setTangentialSecurityDistance(0.1)  # default
+        # Life Service
+        self.lifeService.setState("solitary")  # default
+        self.lifeService.setAutonomousAbilityEnabled("All", True)
+        # Awareness Service
+        self.awarenessService.setEnabled(True)
+        self.awarenessService.setTrackingMode("BodyRotation")  # default
+        for s in stimuli:
+            self.awarenessService.setStimulusDetectionEnabled(s, True)
+        self.awarenessService.setEngagementMode("Unengaged")  # default
 
     def demo(self):
         """Main control loop."""
 
+        print("Start Demo")
+        self.resetSettings()
         self.motionService.wakeUp()
-        # print(self.motionService.getCollisionProtectionEnabled("LArm"))
-        self.motionService.setCollisionProtectionEnabled("Arms", True)
-        self.motionService.setExternalCollisionProtectionEnabled("All", True)
-        return
-        # self.motionService.setOrthogonalSecurityDistance(0.1)
-        # self.awarenessService.setTrackingMode("Head")
         self.motionService.moveInit()
 
         t = threading.Thread(target=self.controller.read)
@@ -86,13 +99,9 @@ class Lab42(object):
             time.sleep(0.001)
             self.handleEvents()
 
-        # self.motionService.setOrthogonalSecurityDistance(0.4)
-        # self.motionService.setCollisionProtectionEnabled("Arms", True)
-        # self.motionService.setExternalCollisionProtectionEnabled(
-        #     "All", True)
-        # self.awarenessService.setTrackingMode("MoveContextually")
-        self.motionService.rest()
         print("Closing App.")
+        self.resetSettings()
+        self.motionService.rest()
 
     def handleEvents(self):
         x = -self.controller.request_axis('ry')
