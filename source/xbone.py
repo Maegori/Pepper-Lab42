@@ -148,16 +148,23 @@ class Xbone():
 
 if __name__ == "__main__":
 
-    js = Xbone('/dev/input/js0')
+    js = Xbone('/dev/input/js1')
 
     x = threading.Thread(target=js.read)
     x.daemon = True
     x.start()
+    print(js.button_map)
+    print(js.axis_map)
 
     while True:
-        try:
-            time.sleep(0.01)
-            print(js.request_axis('rx'), -js.request_axis('ry'))
-        except KeyboardInterrupt:
-            js.terminate()
-            break
+        if js.request_button("start"):
+            print("ok")
+        elif js.request_button("tl"):
+            print("triggerR")
+    # while True:
+    #     try:
+    #         time.sleep(0.01)
+    #         print(js.request_axis('rx'), -js.request_axis('ry'))
+    #     except KeyboardInterrupt:
+    #         js.terminate()
+    #         break

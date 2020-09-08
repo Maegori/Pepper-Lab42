@@ -62,7 +62,7 @@ class Lab42(object):
     def test(self):
         self.motionService.wakeUp()
         print("start")
-        self.postureService.goToPosture("Stand", 0.5)
+        #self.postureService.goToPosture("StandZero", 0.5)
         self.holdPose("StandZero", .5, ["All"], True)
 
         # self.holdCustomPose(
