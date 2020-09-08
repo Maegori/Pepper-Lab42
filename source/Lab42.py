@@ -32,6 +32,7 @@ class Lab42(object):
         self.laserService = session.service("ALLaser")
         self.postureService = session.service("ALRobotPosture")
         self.awarenessService = session.service("ALBasicAwareness")
+        self.lifeService = session.service("ALAutonomousLife")
         self.tts = session.service("ALTextToSpeech")
 
         # Set subscriptions
@@ -175,10 +176,9 @@ class Lab42(object):
         self.holdCustomPose(
             "RArm",
             [0.80, -0.29, 1.61, 1.05, 1.55, 0],
-            [0.2, 0.2, 0.2, 0.2, 0.2, 1],
             0.1,
             ["RHand"],
-            False
+            True
         )
 
         self.awarenessService.setTrackingMode(tm)
@@ -341,27 +341,33 @@ class Lab42(object):
         self.motionService.setCollisionProtectionEnabled("Arms", cp)
         print("Posture off.")
 
-    def holdCustomPose(self, arm, angles, stiffnesses, speed, chains, protection=True):
+    def holdCustomPose(self, chain, angles, speed, triggers, protection=True):
         """
         Stays in specified pose until one of the sensors in the chains is touched.
         """
+        aa = self.lifeService.getAutonomousAbilityEnabled(
+            "BackgroundMovement")
         cp = self.motionService.getCollisionProtectionEnabled("Arms")
+
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", False)
         self.motionService.setCollisionProtectionEnabled("Arms", protection)
 
         print("Trying to reach posture...")
         while True:
-            self.motionService.setAngles(arm, angles, speed, _async=False)
-            time.sleep(3)
-            current = self.motionService.getAngles("RArm", True)
+            self.motionService.setAngles(chain, angles, speed)
+            current = self.motionService.getAngles(chain, True)
             if sum([(y-x)**2 for x, y in zip(current, angles)]) < 0.2:
                 break
 
         print("Waiting in posture...")
-        while not self.isTouched("RArm"):
+        while not self.isTouched(triggers):
             continue
 
-        self.motionService.setCollisionProtectionEnabled("Arms", cp)
         print("Posture off.")
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", aa)
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
 
 if __name__ == "__main__":
