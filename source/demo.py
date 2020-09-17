@@ -29,6 +29,7 @@ class Lab42(object):
         self.laserService = session.service("ALLaser")
         self.postureService = session.service("ALRobotPosture")
         self.awarenessService = session.service("ALBasicAwareness")
+        self.lifeService = session.service("ALAutonomousLife")
         self.tts = session.service("ALTextToSpeech")
 
         # Set subscriptions
@@ -59,39 +60,119 @@ class Lab42(object):
         self.test()
 
     def test(self):
-        print("start")
-        self.motionService.rest()
         self.motionService.wakeUp()
-        self.postureService.goToPosture("StandZero", 0.5)
-        self.motionService.setStiffnesses(
-            "RArm", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        # while True:
-        #     self.motionService.setStiffnesses("RArm", [0, 0, 0, 0, 0, 0])
-        #     print(self.motionService.getAngles("RArm", True))
+        print("start")
+        #self.postureService.goToPosture("StandZero", 0.5)
+        self.holdPose("StandZero", .5, ["All"], True)
 
-        # self.motionService.angleInterpolation(
-        #     ["RShoulderPitch", "RShoulderRoll", "RElbowYaw",
-        #         "RElbowRoll", "RWristYaw", "RHand"],
-        #     angles,
-        #     [1.0 for _ in range(6)], True)
-        speed = 0.2
-        goal = [1, -0.5, 1.61, 1.05, 1.55, 0]
-
-        self.motionService.setAngles(
-            "RArm", goal, speed)
-
-        while True:
-            current = self.motionService.getAngles("RArm", True)
-            if sum([(y-x)**2 for x, y in zip(current, goal)]) < 0.2:
-                break
-
-        print("Waiting in pose...")
-        while not self.isTouched("RArm"):
-            continue
+        # self.holdCustomPose(
+        #     "RArm",
+        #     [0.80, -0.29, 1.61, 1.05, 1.55, 0],
+        #     0.1,
+        #     ["All"],
+        #     True
+        # )
 
         print("end")
-        # self.postureService.goToPosture("Stand", 0.5)
-        self.motionService.setCollisionProtectionEnabled("Arms", True)
+        self.postureService.goToPosture("Stand", .1)
+        sys.exit(0)
+        # self.motionService.rest()
+
+    def holdCustomPose(self, chain, angles, speed, triggers, protection=True):
+        """
+        Stays in specified pose until one of the sensors in the chains is touched.
+        """
+        aa = self.lifeService.getAutonomousAbilityEnabled(
+            "BackgroundMovement")
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", False)
+        self.motionService.setCollisionProtectionEnabled("Arms", protection)
+
+        print("Trying to reach posture...")
+        while True:
+            self.motionService.setAngles(chain, angles, speed)
+            current = self.motionService.getAngles(chain, True)
+            if sum([(y-x)**2 for x, y in zip(current, angles)]) < 0.2:
+                break
+
+        print("Waiting in posture...")
+        while not self.isTouched(triggers):
+            continue
+
+        print("Posture off.")
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", aa)
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
+
+    def holdPose(self, poseName, speed, chains, protection=True):
+        """
+        Stays in specified pose until one of the sensors in the chains is touched.
+        """
+        aa = self.lifeService.getAutonomousAbilityEnabled(
+            "BackgroundMovement")
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", False)
+        self.motionService.setCollisionProtectionEnabled("Arms", protection)
+
+        print("Trying to reach posture...")
+        while not self.postureService.goToPosture(poseName, speed):
+            continue
+
+        angles = self.motionService.getAngles("Body", True)
+        self.motionService.setAngles("Body", angles, speed)
+
+        print("Waiting in posture.")
+        while not self.isTouched(chains):
+            continue
+
+        print("Posture off.")
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", aa)
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
+
+    def isTouched(self, chains):
+        """
+        Returns True if any of the sensors in the specified chains
+        is touched else False.
+
+        Available chains are {"All", "Feet", "Head", "Arms", "LHand", "RHand"}
+        """
+
+        parts = [
+            "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Rear/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Middle/Sensor/Value",
+            "Device/SubDeviceList/Head/Touch/Front/Sensor/Value",
+            "Device/SubDeviceList/LHand/Touch/Back/Sensor/Value",
+            "Device/SubDeviceList/RHand/Touch/Back/Sensor/Value"
+        ]
+
+        p = []
+
+        for c in chains:
+            if c == "All":
+                p = parts
+                break
+            elif c == "Feet":
+                p += parts[:3]
+            elif c == "Head":
+                p += parts[3:6]
+            elif c == "Arms":
+                p += parts[6:]
+            elif c == "LHand":
+                p += [parts[6]]
+            elif c == "RHand":
+                p += [parts[7]]
+            else:
+                raise KeyError
+
+        return sum(self.memoryService.getListData(p)) > 0
 
     def demo(self):
         """Main control loop."""
@@ -127,23 +208,6 @@ class Lab42(object):
         elif self.controller.request_button('b'):
             self.motionService.stopMove()
             self.running = False
-
-    def holdPose(self, poseName, speed, chains):
-        """
-        Stays in specified pose until one of the sensors in the chains is touched.
-        """
-        cp = self.motionService.getCollisionProtectionEnabled("Arms")
-        self.motionService.setCollisionProtectionEnabled("Arms", True)
-        self.postureService.goToPosture(poseName, speed)
-
-        while not self.postureService._isRobotInPosture(poseName, 26, 2):
-            continue
-
-        while not self.isTouched(chains):
-            angles = self.motionService.getAngles("Body", True)
-            self.motionService.setAngles("Body", angles, speed)
-
-        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
@@ -254,61 +318,6 @@ class Lab42(object):
 
         self.id = self.touch.signal.connect(
             functools.partial(self.onTouched, "TouchChanged"))
-
-    def isTouched(self, chains):
-        """
-        Returns True if any of the sensors in the specified chains
-        is touched else False.
-
-        Available chains are {"All", "Feet", "Head", "Arms", "LHand", "RHand"}
-        """
-
-        parts = [
-            "Device/SubDeviceList/Platform/FrontRight/Bumper/Sensor/Value",
-            "Device/SubDeviceList/Platform/FrontLeft/Bumper/Sensor/Value",
-            "Device/SubDeviceList/Platform/Back/Bumper/Sensor/Value",
-            "Device/SubDeviceList/Head/Touch/Rear/Sensor/Value",
-            "Device/SubDeviceList/Head/Touch/Middle/Sensor/Value",
-            "Device/SubDeviceList/Head/Touch/Front/Sensor/Value",
-            "Device/SubDeviceList/LHand/Touch/Back/Sensor/Value",
-            "Device/SubDeviceList/RHand/Touch/Back/Sensor/Value"
-        ]
-
-        p = []
-
-        for c in chains:
-            if c == "All":
-                p = parts
-                break
-            elif c == "Feet":
-                p += parts[:3]
-            elif c == "Head":
-                p += parts[3:6]
-            elif c == "Arms":
-                p += parts[6:]
-            elif c == "LHand":
-                p += [parts[6]]
-            elif c == "RHand":
-                p += [parts[7]]
-
-        return sum(self.memoryService.getListData(p)) > 0
-
-    def holdPose(self, poseName, speed, chains):
-        """
-        Stays in specified pose until one of the sensors in the chains is touched.
-        """
-        cp = self.motionService.getCollisionProtectionEnabled("Arms")
-        self.motionService.setCollisionProtectionEnabled("Arms", True)
-        self.postureService.goToPosture(poseName, speed)
-
-        while not self.postureService._isRobotInPosture(poseName, 26, 2):
-            continue
-
-        while not self.isTouched(chains):
-            angles = self.motionService.getAngles("Body", True)
-            self.motionService.setAngles("Body", angles, speed)
-
-        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
 
 if __name__ == "__main__":
