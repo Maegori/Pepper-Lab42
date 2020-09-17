@@ -6,7 +6,7 @@ ENV USER root
 
 # Install all dependencies for OpenCV
 RUN apt-get -y update && \
-    apt-get -y install \
+        apt-get -y install \
         python2.7 \
         python2.7-dev \
         git \
@@ -47,10 +47,10 @@ RUN     wget https://github.com/opencv/opencv/archive/$OPENCV_VERSION.zip -O ope
 # Build OpenCV
 RUN     mkdir /opencv/build && cd /opencv/build && \
         cmake   -D CMAKE_BUILD_TYPE=RELEASE \
-                -D BUILD_PYTHON_SUPPORT=ON \
-                -D CMAKE_INSTALL_PREFIX=/usr/local \
-                -D OPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
-                -D BUILD_EXAMPLES=OFF .. && \
+        -D BUILD_PYTHON_SUPPORT=ON \
+        -D CMAKE_INSTALL_PREFIX=/usr/local \
+        -D OPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
+        -D BUILD_EXAMPLES=OFF .. && \
         cd /opencv/build && \
         make -j$(nproc) && \
         make install && \
@@ -86,7 +86,7 @@ RUN pip install -r /root/requirements.txt
 
 WORKDIR /root/source
 
-# docker run -it --name pepper --net=host --env="DISPLAY" --volume="$HOME/.Xauthority:/root/.Xauthority:rw"  --device=/dev/input/* -v ${PWD}/source:/root/source lab42
+# docker run -it --name pepper --net=host --env="DISPLAY" --volume="$HOME/.Xauthority:/root/.Xauthority:rw"  --device=/dev/input/ -v ${PWD}/source:/root/source lab42
 # xhost  +local:root
 # docker start pepper
 # docker attach pepper
