@@ -224,7 +224,7 @@ class Lab42(object):
             ["RHand"],
             False
         )
-        self.postureService.goToPosture("Stand", 0.5)
+        self.postureService.goToPosture("Stand", 0.2)
         self.align()
         self.animate()
 
@@ -239,7 +239,7 @@ class Lab42(object):
             ["RHand"],
             False
         )
-        self.postureService.goToPosture("Stand", 0.5)
+        self.postureService.goToPosture("Stand", 0.2)
         self.awarenessService.setTrackingMode(tm)
 
     def align(self):
@@ -287,7 +287,7 @@ class Lab42(object):
         keys = []
         isAbsolute = True
 
-        with open("animations/swing1.pickle", "rb") as f:
+        with open("animations/swing2.pickle", "rb") as f:
             animation = pickle.load(f)
 
         for key in animation.keys():
