@@ -1,4 +1,3 @@
-
 import qi
 import argparse
 import functools
@@ -85,11 +84,13 @@ class Lab42(object):
 
     def demo(self):
         """Main control loop."""
-
-        print("Start Demo")
+        print("Starting Demo.")
         self.resetSettings()
         self.motionService.wakeUp()
         self.motionService.moveInit()
+
+        ecp = self.motionService.getExternalCollisionProtectionEnabled("All")
+        self.motionService.setExternalCollisionProtectionEnabled("All", False)
 
         t = threading.Thread(target=self.controller.read)
         t.deamon = True
@@ -100,6 +101,7 @@ class Lab42(object):
             self.handleEvents()
 
         print("Closing App.")
+        self.motionService.setExternalCollisionProtectionEnabled("All", ecp)
         self.resetSettings()
         self.motionService.rest()
 
@@ -128,25 +130,34 @@ class Lab42(object):
             self.running = False
 
     def guidedMove(self):
-        print("Guided mode active.")
+        ss = self.motionService.getSmartStiffnessEnabled()
+        self.motionService.setSmartStiffnessEnabled(False)
+
         tm = self.awarenessService.getTrackingMode()
-        #cp = self.motionService.getCollisionProtectionEnabled()
-        #ep = self.motionService.getExternalCollisionProtection()
-
         self.awarenessService.setTrackingMode("Head")
-        self.motionService.setCollisionProtectionEnabled("Arms", False)
-        self.motionService.setExternalCollisionProtectionEnabled("All", False)
-        # self.awarenessService.resumeAwareness()
-        # self.awarenessService.setEnabled(True)
-        # self.awarenessService.setStimulusDetectionEnabled("Touch", False)
 
-        # self.postureService.goToPosture("walkByHand", 0.5)
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+        self.motionService.setCollisionProtectionEnabled("Arms", False)
+
+        ecp = self.motionService.getExternalCollisionProtectionEnabled("All")
+        self.motionService.setExternalCollisionProtectionEnabled("All", False)
+
+        aa = self.lifeService.getAutonomousAbilityEnabled(
+            "BackgroundMovement")
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", False)
+
+        sd = self.awarenessService.isStimulusDetectionEnabled("Touch")
+        self.awarenessService.setStimulusDetectionEnabled("Touch", False)
+
+        print("Guided mode active.")
 
         self.motionService.moveInit()
 
-        angles = [-0.25, 0.2, -2.0857, 0, 0, 0.4]
+        angles = [-0.25, 0.2, -1.5, 0, 0, 0.4]
         speed = 0.1
 
+        print("Waiting for partner...")
         self.holdCustomPose("LArm", angles, speed, ["LHand"])
         print("Moving by Hand.")
         while True:
@@ -163,19 +174,17 @@ class Lab42(object):
 
             except KeyboardInterrupt:
                 self.motionService.stopMove()
-                print("\nstopped")
+                print("\nExiting guided movement.")
                 break
 
-        self.postureService.goToPosture("Stand", 0.2)
-        self.awarenessService.setTrackingMode(tm)
-        self.motionService.setCollisionProtectionEnabled("Arms", True)
-        self.motionService.setExternalCollisionProtectionEnabled("All", True)
+        self.postureService.goToPosture("Stand", 0.3)
+        self.motionService.setExternalCollisionProtectionEnabled("All", ecp)
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
-        # self.motionService.setCollisionProtectionEnabled("Arms", True)
-        # self.motionService.setExternalCollisionProtectionEnabled("All", True)
-        # self.postureService.goToPosture("Stand", 0.5)
-        # self.awarenessService.setStimulusDetectionEnabled("Touch", True)
-        # self.motionService.setSmartStiffnessEnabled(True)
+        self.awarenessService.setStimulusDetectionEnabled("Touch", sd)
+        self.awarenessService.setTrackingMode(tm)
+        self.motionService.setSmartStiffnessEnabled(ss)
+        print("Standing around.")
 
     def handToScalar(self):
         return self.motionService.getAngles("LArm", True)[5]
@@ -201,7 +210,7 @@ class Lab42(object):
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
         tm = self.awarenessService.getTrackingMode()
-        self.awarenessService.setTrackingMode("WholeBody")
+        self.awarenessService.setTrackingMode("Head")
 
         print("Waiting for confirmation to align and hit.")
         self.holdPose("StandZero", 0.5, ["All"])
@@ -218,7 +227,6 @@ class Lab42(object):
         )
 
         self.awarenessService.setTrackingMode(tm)
-        # self.motionService.rest()
 
     def align(self):
         self.motionService.moveInit()
@@ -252,7 +260,9 @@ class Lab42(object):
         print("Target reached and aligned with")
 
     def animate(self):
+        ecp = self.motionService.getExternalCollisionProtectionEnabled("Arms")
         self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
+
         self.motionService.moveToward(0, 0, 0.69)
         time.sleep(1.1)
         self.motionService.stopMove()
@@ -289,6 +299,62 @@ class Lab42(object):
         self.motionService.stopMove()
         print("In range of target")
         return np.argmin(scan)
+
+    def holdPose(self, poseName, speed, chains, protection=True):
+        """
+        Stays in specified pose until one of the sensors in the chains is touched.
+        """
+        aa = self.lifeService.getAutonomousAbilityEnabled(
+            "BackgroundMovement")
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", False)
+        self.motionService.setCollisionProtectionEnabled("Arms", protection)
+
+        print("Trying to reach posture...")
+        while not self.postureService.goToPosture(poseName, speed):
+            continue
+
+        angles = self.motionService.getAngles("Body", True)
+        self.motionService.setAngles("Body", angles, speed)
+
+        print("Waiting in posture.")
+        while not self.isTouched(chains):
+            continue
+
+        print("Posture off.")
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", aa)
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
+
+    def holdCustomPose(self, chain, angles, speed, triggers, protection=True):
+        """
+        Stays in specified pose until one of the sensors in the chains is touched.
+        """
+        aa = self.lifeService.getAutonomousAbilityEnabled(
+            "BackgroundMovement")
+        cp = self.motionService.getCollisionProtectionEnabled("Arms")
+
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", False)
+        self.motionService.setCollisionProtectionEnabled("Arms", protection)
+
+        print("Trying to reach posture...")
+        while True:
+            self.motionService.setAngles(chain, angles, speed)
+            current = self.motionService.getAngles(chain, True)
+            if sum([(y-x)**2 for x, y in zip(current, angles)]) < 0.2:
+                break
+
+        print("Waiting in posture...")
+        while not self.isTouched(triggers):
+            continue
+
+        print("Posture off.")
+        self.lifeService.setAutonomousAbilityEnabled(
+            "BackgroundMovement", aa)
+        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
     def onBlocked(self, strVarName, value):
         """Print information when movement is blocked."""
@@ -356,62 +422,6 @@ class Lab42(object):
                 raise KeyError
 
         return sum(self.memoryService.getListData(p)) > 0
-
-    def holdPose(self, poseName, speed, chains, protection=True):
-        """
-        Stays in specified pose until one of the sensors in the chains is touched.
-        """
-        aa = self.lifeService.getAutonomousAbilityEnabled(
-            "BackgroundMovement")
-        cp = self.motionService.getCollisionProtectionEnabled("Arms")
-
-        self.lifeService.setAutonomousAbilityEnabled(
-            "BackgroundMovement", False)
-        self.motionService.setCollisionProtectionEnabled("Arms", protection)
-
-        print("Trying to reach posture...")
-        while not self.postureService.goToPosture(poseName, speed):
-            continue
-
-        angles = self.motionService.getAngles("Body", True)
-        self.motionService.setAngles("Body", angles, speed)
-
-        print("Waiting in posture.")
-        while not self.isTouched(chains):
-            continue
-
-        print("Posture off.")
-        self.lifeService.setAutonomousAbilityEnabled(
-            "BackgroundMovement", aa)
-        self.motionService.setCollisionProtectionEnabled("Arms", cp)
-
-    def holdCustomPose(self, chain, angles, speed, triggers, protection=True):
-        """
-        Stays in specified pose until one of the sensors in the chains is touched.
-        """
-        aa = self.lifeService.getAutonomousAbilityEnabled(
-            "BackgroundMovement")
-        cp = self.motionService.getCollisionProtectionEnabled("Arms")
-
-        self.lifeService.setAutonomousAbilityEnabled(
-            "BackgroundMovement", False)
-        self.motionService.setCollisionProtectionEnabled("Arms", protection)
-
-        print("Trying to reach posture...")
-        while True:
-            self.motionService.setAngles(chain, angles, speed)
-            current = self.motionService.getAngles(chain, True)
-            if sum([(y-x)**2 for x, y in zip(current, angles)]) < 0.2:
-                break
-
-        print("Waiting in posture...")
-        while not self.isTouched(triggers):
-            continue
-
-        print("Posture off.")
-        self.lifeService.setAutonomousAbilityEnabled(
-            "BackgroundMovement", aa)
-        self.motionService.setCollisionProtectionEnabled("Arms", cp)
 
 
 if __name__ == "__main__":

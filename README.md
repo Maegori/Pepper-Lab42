@@ -14,6 +14,16 @@ sudo docker run -it -v ${PWD}/source:/root/source lab42
 sudo docker run -it --name pepper --net=host --env="DISPLAY" --volume="$HOME/.Xauthority:/root/.Xauthority:rw"  --device=/dev/input/ -v ${PWD}/source:/root/source lab42
 ```
 
+## Good to know
+
+### Indices arm joints
+0. ShoulderPitch
+1. ShoulderRoll
+2. ElbowYaw
+3. ElbowRoll
+4. WristYaw
+5. Hand
+
 
 
 ## TODO
