@@ -104,6 +104,7 @@ class Lab42(object):
         self.motionService.setExternalCollisionProtectionEnabled("All", ecp)
         self.resetSettings()
         self.motionService.rest()
+        sys.exit(0)
 
     def handleEvents(self):
         x = -self.controller.request_axis('ry')
@@ -213,19 +214,32 @@ class Lab42(object):
         self.awarenessService.setTrackingMode("Head")
 
         print("Waiting for confirmation to align and hit.")
-        self.holdPose("StandZero", 0.5, ["All"])
-        self.postureService.goToPosture("Stand", 0.5)
-        self.align()
-        self.animate()
-        print("Waiting for confirmation to release the hammer.")
+        angles = [0.80, -0.29, 1.61, 1.05, 1.55, 0]
+        speed = 0.1
+
         self.holdCustomPose(
             "RArm",
-            [0.80, -0.29, 1.61, 1.05, 1.55, 0],
-            0.1,
+            angles,
+            speed,
             ["RHand"],
             False
         )
+        self.postureService.goToPosture("Stand", 0.5)
+        self.align()
+        self.animate()
 
+        print("Waiting for confirmation to release the hammer.")
+        self.motionService.moveToward(0, 0, -1)
+        time.sleep(1.1)
+        self.motionService.stopMove()
+        self.holdCustomPose(
+            "RArm",
+            angles,
+            speed,
+            ["RHand"],
+            False
+        )
+        self.postureService.goToPosture("Stand", 0.5)
         self.awarenessService.setTrackingMode(tm)
 
     def align(self):
