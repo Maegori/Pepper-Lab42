@@ -21,7 +21,7 @@ class Speaker(object):
 
         self.voiceLines()
 
-    def voiceLines(self):
+    def voiceLines(self, idx):
         lines = ["Dit is allemaal heel interessant, maar ik kan niet wachten \
             totdat de bouw gaat beginnen! \
             \\pau=800\\ \
@@ -52,6 +52,8 @@ class Speaker(object):
             Ik drink natuurlijk zelf niet, \
             dus ik ga graag op de foto met wie dat wil."
             ]
+
+        self.tts.say(lines[idx])
 
 
         # self.tts.say(
