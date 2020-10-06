@@ -9,6 +9,7 @@ import struct
 import math
 import threading
 import pickle
+import time
 
 import numpy as np
 from xbone import Xbone
@@ -166,8 +167,8 @@ class Lab42(object):
             self.alignHit()
             self.motionService.stopMove()
         elif self.controller.request_button('y'):
-            self.guidedMove()
             self.motionService.stopMove()
+            self.guidedMove()
         elif self.controller.request_button('select'):
             self.motionService.stopMove()
             self.running = False
@@ -212,28 +213,42 @@ class Lab42(object):
         self.motionService.moveInit()
 
         angles = [-0.25, 0.2, -1.5, 0, 0, 0.4]
+        times = [1.5, 1.5, 1.5, 1.5, 1.5, 1.5]
+
         speed = 0.1
 
         print("Waiting for partner...")
         self.holdCustomPose("LArm", angles, speed, ["LHand"])
         print("Moving by Hand.")
 
-
         while not self.controller.request_button("b"):
-
+            t = time.time()
             self.motionService.setAngles(
-                "LArm", angles, speed)
+                "LArm", angles, speed
+            )
+
+            t0 = time.time()
             self.motionService.setStiffnesses(
                 "LArm", [0.6, 0.1, 0, 0, 0, 0])
-            if self.handToScalar() > 0.6:
+            
+            t1 =  time.time()
 
-                x = self.elbowToScalar()
-                theta = self.wristToScalar()
+            v = self.anglesToMovement()
+
+            if v:
+                x = v[0]
+                theta = v[1]
+
+                t2 =  time.time()
 
                 if not -0.45 < theta < 0.45:
                     x = 0
 
                 self.motionService.moveToward(x, 0, theta)
+                
+                t3 =  time.time()  
+                print(t0 - t, t1 - t0,  t2 - t1, t3 - t2, np.argmax([t0 - t, t1 - t0,  t2 - t1, t3 - t2]))
+
             else:
                 self.motionService.stopMove()            
 
@@ -253,6 +268,28 @@ class Lab42(object):
         
         print("Standing around.")
 
+
+    def anglesToMovement(self):
+        angles = self.motionService.getAngles("LArm", True)
+        
+        hand = angles[5]
+
+        if hand < 0.6:
+            return [] 
+        
+        
+        theta = 60.0
+        elbow = -angles[3] * COEFF - .5 
+        elbow = round(1 - (elbow / theta), 1) if elbow < theta else 0.0
+            
+        theta = 14.5
+        wrist = angles[4] * COEFF
+        wrist = -round(wrist / 104.5, 1) if not (-theta < wrist < theta) else 0.0
+
+
+        return elbow, wrist, hand
+
+
     def handToScalar(self):
         return self.motionService.getAngles("LArm", True)[5]
 
@@ -269,10 +306,13 @@ class Lab42(object):
     def wristToScalar(self):
         w_angle = self.motionService.getAngles("LArm", True)[4] * COEFF
         theta = 14.5
+
         if not (-theta < w_angle < theta):
             return -round(w_angle / 104.5, 1)
         else:
             return 0.0
+
+
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
@@ -543,16 +583,17 @@ class Lab42(object):
             line = str(raw_input("Say: ")).strip()
             if line == '':
                 continue
-            elif line == 'h' or line == "help":
-                for i, x in enumerate(lines):
-                    print("["+str(i)+"] : " + x)
             elif line[0] == '~':
-                try:
-                    x = int(line[1:])
-                    line = lines[x]
-                except:
-                    print("Given index is invalid.")
-                    continue
+                if line == 'h' or line == "help":
+                    for i, x in enumerate(lines):
+                        print("["+str(i)+"] : " + x)
+                else:
+                    try:
+                        x = int(line[1:])
+                        line = lines[x]
+                    except:
+                        print("Given index is invalid.")
+                        continue
 
             c = str(raw_input("Are your sure you want to say:\n'" +
                             line + "'\n[y/n]: ")).strip().lower()
