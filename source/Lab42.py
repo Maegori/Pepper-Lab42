@@ -13,6 +13,7 @@ import struct
 import math
 import threading
 import pickle
+import time
 
 import numpy as np
 from xbone import Xbone
@@ -177,8 +178,8 @@ class Lab42(object):
             self.alignHit()
             self.motionService.stopMove()
         elif self.controller.request_button('y'):
-            self.guidedMove()
             self.motionService.stopMove()
+            self.guidedMove()
         elif self.controller.request_button('select'):
             self.motionService.stopMove()
             self.running = False
@@ -219,6 +220,8 @@ class Lab42(object):
         self.motionService.moveInit()
 
         angles = [-0.25, 0.2, -1.5, 0, 0, 0.4]
+        times = [1.5, 1.5, 1.5, 1.5, 1.5, 1.5]
+
         speed = 0.1
 
         print("Waiting for partner...")
@@ -226,16 +229,15 @@ class Lab42(object):
         print("Moving by Hand.")
 
         while not self.controller.request_button("b"):
-
             self.motionService.setAngles(
                 "LArm", angles, speed)
-
             self.motionService.setStiffnesses(
                 "LArm", [0.6, 0.1, 0, 0, 0, 0])
+            v = self.anglesToMovement()
 
-            if self.handToScalar() > 0.6:
-                x = self.elbowToScalar()
-                theta = self.wristToScalar()
+            if v:
+                x = v[0]
+                theta = v[1]
 
                 if not -0.45 < theta < 0.45:
                     x = 0
@@ -260,6 +262,25 @@ class Lab42(object):
 
         print("Standing around.")
 
+    def anglesToMovement(self):
+        angles = self.motionService.getAngles("LArm", True)
+
+        hand = angles[5]
+
+        if hand < 0.6:
+            return []
+
+        theta = 60.0
+        elbow = -angles[3] * COEFF - .5
+        elbow = round(1 - (elbow / theta), 1) if elbow < theta else 0.0
+
+        theta = 14.5
+        wrist = angles[4] * COEFF
+        wrist = -round(wrist / 104.5, 1) if not (-theta <
+                                                 wrist < theta) else 0.0
+
+        return elbow, wrist, hand
+
     def handToScalar(self):
         """
         """
@@ -282,6 +303,7 @@ class Lab42(object):
         """
         w_angle = self.motionService.getAngles("LArm", True)[4] * COEFF
         theta = 14.5
+
         if not (-theta < w_angle < theta):
             return -round(w_angle / 104.5, 1)
         else:
@@ -531,16 +553,17 @@ class Lab42(object):
             line = str(raw_input("Say: ")).strip()
             if line == '':
                 continue
-            elif line == '~h' or line == "~help":
-                for i, x in enumerate(lines):
-                    print("["+str(i)+"] : " + x)
             elif line[0] == '~':
-                try:
-                    x = int(line[1:])
-                    line = lines[x]
-                except:
-                    print("Given index is invalid.")
-                    continue
+                if line == 'h' or line == "help":
+                    for i, x in enumerate(lines):
+                        print("["+str(i)+"] : " + x)
+                else:
+                    try:
+                        x = int(line[1:])
+                        line = lines[x]
+                    except:
+                        print("Given index is invalid.")
+                        continue
 
             c = str(raw_input("Are your sure you want to say:\n'" +
                               line + "'\n[y/n]: ")).strip().lower()
