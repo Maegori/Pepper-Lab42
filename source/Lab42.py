@@ -1,5 +1,4 @@
 import qi
-import qicore
 import argparse
 import functools
 import sys
@@ -43,6 +42,13 @@ class Lab42(object):
         self.block = self.memoryService.subscriber(
             "ALMotion/MoveFailed"
         )
+        self.push = self.memoryService.subscriber("ALMotion/RobotPushed")
+        self.pushrec = self.memoryService.subscriber(
+            "ALMotion/Safety/PushRecovery")
+        self.fall = self.memoryService.subscriber("ALMotion/RobotIsFalling")
+        self.fall1 = self.memoryService.subscriber("robotHasFallen")
+        self.slope = self.memoryService.subscriber(
+            "ALMotion/Safety/RobotOnASlope")
 
         # Connect callbacks
         self.id = self.touch.signal.connect(
@@ -51,13 +57,6 @@ class Lab42(object):
         self.block.signal.connect(
             functools.partial(self.onBlocked, "ALMotion/MoveFailed")
         )
-
-        self.push = self.memoryService.subscriber("ALMotion/RobotPushed")
-        self.pushrec = self.memoryService.subscriber("ALMotion/Safety/PushRecovery")
-        self.fall = self.memoryService.subscriber("ALMotion/RobotIsFalling")
-        self.fall1 = self.memoryService.subscriber("robotHasFallen")
-        self.slope = self.memoryService.subscriber("ALMotion/Safety/RobotOnASlope")
-
         self.push.signal.connect(
             functools.partial(self.onPushed, "ALMotion/RobotPushed")
         )
@@ -73,8 +72,6 @@ class Lab42(object):
         self.slope.signal.connect(
             functools.partial(self.onSlope, "ALMotion/Safety/RobotOnASlope")
         )
-
-
 
         # TTS settings
         self.tts.setLanguage("Dutch")
@@ -109,12 +106,11 @@ class Lab42(object):
         self.awarenessService.setEnabled(True)
         self.awarenessService.setTrackingMode("BodyRotation")  # default
         for s in stimuli:
-            self.awarenessService.setStimulusDetectionEnabled(s, False)
+            self.awarenessService.setStimulusDetectionEnabled(s, True)
         self.awarenessService.setEngagementMode("Unengaged")  # default
         # Idle and breath animation
         self.motionService.setIdlePostureEnabled("Arms", True)
         self.motionService.setBreathEnabled("Arms", False)
-        
 
     def demo(self):
         """Main control loop."""
@@ -123,10 +119,13 @@ class Lab42(object):
                    "Sound", "Movement", "NavigationMotion"]
         print("Starting Demo.")
         self.resetSettings()
+        for s in stimuli:
+            self.awarenessService.setStimulusDetectionEnabled(s, False)
         self.motionService.wakeUp()
         self.motionService.moveInit()
-        
-        self.tabletService.showWebview("http://198.18.0.1/apps/boot-config/preloading_dialog.html")
+
+        self.tabletService.showWebview(
+            "http://198.18.0.1/apps/boot-config/preloading_dialog.html")
 
         t = threading.Thread(target=self.controller.read)
         t.deamon = True
@@ -143,8 +142,7 @@ class Lab42(object):
         print("Closing App.")
         self.resetSettings()
         self.tabletService.hideWebview()
-        for s in stimuli:
-            self.awarenessService.setStimulusDetectionEnabled(s, True)
+        
         return
 
     def handleEvents(self):
@@ -174,7 +172,6 @@ class Lab42(object):
             self.running = False
             self.talking = False
             self.controller.terminate()
-        
 
     def guidedMove(self):
 
@@ -184,14 +181,8 @@ class Lab42(object):
         ss = self.motionService.getSmartStiffnessEnabled()
         self.motionService.setSmartStiffnessEnabled(False)
 
-        tm = self.awarenessService.getTrackingMode()
-        #self.awarenessService.setTrackingMode("Head")
-
         cp = self.motionService.getCollisionProtectionEnabled("Arms")
         self.motionService.setCollisionProtectionEnabled("Arms", False)
-
-        ecp = self.motionService.getExternalCollisionProtectionEnabled("All")
-        self.motionService.setExternalCollisionProtectionEnabled("All", False)
 
         aa = self.lifeService.getAutonomousAbilityEnabled(
             "BackgroundMovement")
@@ -206,7 +197,6 @@ class Lab42(object):
 
         bm = self.motionService.getBreathEnabled("Arms")
         self.motionService.setBreathEnabled("Arms", False)
-
 
         print("Guided mode active.")
 
@@ -230,8 +220,8 @@ class Lab42(object):
             t0 = time.time()
             self.motionService.setStiffnesses(
                 "LArm", [0.6, 0.1, 0, 0, 0, 0])
-            
-            t1 =  time.time()
+
+            t1 = time.time()
 
             v = self.anglesToMovement()
 
@@ -239,80 +229,50 @@ class Lab42(object):
                 x = v[0]
                 theta = v[1]
 
-                t2 =  time.time()
+                t2 = time.time()
 
                 if not -0.45 < theta < 0.45:
                     x = 0
 
                 self.motionService.moveToward(x, 0, theta)
-                
-                t3 =  time.time()  
-                print(t0 - t, t1 - t0,  t2 - t1, t3 - t2, np.argmax([t0 - t, t1 - t0,  t2 - t1, t3 - t2]))
+
+                t3 = time.time()
+                print(t0 - t, t1 - t0,  t2 - t1, t3 - t2,
+                      np.argmax([t0 - t, t1 - t0,  t2 - t1, t3 - t2]))
 
             else:
-                self.motionService.stopMove()            
+                self.motionService.stopMove()
 
         self.motionService.stopMove()
-        print("\nExiting guided movement.")
-
+        print("Exiting guided movement.")
         self.postureService.goToPosture("Stand", 0.3)
         self.motionService.setExternalCollisionProtectionEnabled("All", ecp)
         self.motionService.setCollisionProtectionEnabled("Arms", cp)
-
         self.awarenessService.setStimulusDetectionEnabled("Touch", sd)
-        #self.awarenessService.setTrackingMode(tm)
         self.motionService.setSmartStiffnessEnabled(ss)
         self.motionService.setExternalCollisionProtectionEnabled("All", ecp)
         self.motionService.setIdlePostureEnabled("Arms", im)
         self.motionService.setBreathEnabled("Arms", bm)
-        
         print("Standing around.")
-
 
     def anglesToMovement(self):
         angles = self.motionService.getAngles("LArm", True)
-        
+
         hand = angles[5]
 
         if hand < 0.6:
-            return [] 
-        
-        
+            return []
+
         theta = 60.0
-        elbow = -angles[3] * COEFF - .5 
+        elbow = -angles[3] * COEFF - .5
         elbow = round(1 - (elbow / theta), 1) if elbow < theta else 0.0
-            
+
         theta = 14.5
         wrist = angles[4] * COEFF
-        wrist = -round(wrist / 104.5, 1) if not (-theta < wrist < theta) else 0.0
-
+        wrist = -round(wrist / 104.5, 1) if not (-theta <
+                                                 wrist < theta) else 0.0
 
         return elbow, wrist, hand
-
-
-    def handToScalar(self):
-        return self.motionService.getAngles("LArm", True)[5]
-
-    def elbowToScalar(self):
-        e_angle = -self.motionService.getAngles("LArm", True)[3] * COEFF
-        e_angle -= 0.5
-        theta = 60.0
-
-        if e_angle < theta:
-            return round(1 - (e_angle / theta), 1)
-        else:
-            return 0.0
-
-    def wristToScalar(self):
-        w_angle = self.motionService.getAngles("LArm", True)[4] * COEFF
-        theta = 14.5
-
-        if not (-theta < w_angle < theta):
-            return -round(w_angle / 104.5, 1)
-        else:
-            return 0.0
-
-
 
     def alignHit(self):
         """Align with the object and play the hit animation after a cue."""
@@ -323,7 +283,7 @@ class Lab42(object):
         self.motionService.setExternalCollisionProtectionEnabled("All", False)
 
         print("Waiting for confirmation to align and hit.")
-        angles_1 = [0.80, -0.29, 1.61, 1.05, 1.55, 1]
+        angles_1 = [0.80, -0.29, 1.61, 1.05, 1.55, 1]###########################################
         angles_2 = [0.80, -0.29, 1.61, 1.05, 1.55, 0]
         speed = 0.1
 
@@ -359,7 +319,7 @@ class Lab42(object):
 
         phi = 0.0698  # Radians between two adjacent lasers
 
-        while True:
+        while not self.controller.request_button('b'):
             scan = self.memoryService.getListData(keys)
             target = np.argmin(scan)
 
@@ -404,7 +364,7 @@ class Lab42(object):
 
         self.postureService.goToPosture("StandInit", 1)
         self.motionService.angleInterpolation(names, keys, times, isAbsolute)
-        
+
         self.motionService.setExternalCollisionProtectionEnabled("Arms", ecp)
 
     def approach(self, keys):
@@ -415,7 +375,7 @@ class Lab42(object):
         print("Approaching target")
         scan = self.memoryService.getListData(keys)
 
-        while min(scan) > TARGET_DISTANCE:
+        while min(scan) > TARGET_DISTANCE or not self.controller.request_button('b'):
             self.motionService.moveToward(0.3, 0, 0)
             scan = self.memoryService.getListData(keys)
 
@@ -438,7 +398,7 @@ class Lab42(object):
         self.motionService.setCollisionProtectionEnabled("Arms", protection)
 
         print("Trying to reach posture...")
-        while not self.postureService.goToPosture(poseName, speed):
+        while not self.postureService.goToPosture(poseName, speed) or not self.controller.request_button('b'):
             continue
 
         angles = self.motionService.getAngles("Body", True)
@@ -466,7 +426,7 @@ class Lab42(object):
         self.motionService.setCollisionProtectionEnabled("Arms", protection)
 
         print("Trying to reach posture...")
-        while True:
+        while not self.controller.request_button('b'):
             self.motionService.setAngles(chain, angles, speed)
             current = self.motionService.getAngles(chain, True)
             if sum([(y-x)**2 for x, y in zip(current, angles)]) < 0.2:
@@ -480,7 +440,6 @@ class Lab42(object):
         self.lifeService.setAutonomousAbilityEnabled(
             "BackgroundMovement", aa)
         self.motionService.setCollisionProtectionEnabled("Arms", cp)
-        
 
     def onBlocked(self, strVarName, value):
         """Print information when movement is blocked."""
@@ -575,7 +534,7 @@ class Lab42(object):
             "\\pau=500\\" +
             "Dus kom, laten we de eerste paal gaan slaan!",
 
-            "De eerste paal is geslagen, laat de bouw beginnen!" 
+            "De eerste paal is geslagen, laat de bouw beginnen!"
 
         ]
 
@@ -596,22 +555,34 @@ class Lab42(object):
                         continue
 
             c = str(raw_input("Are your sure you want to say:\n'" +
-                            line + "'\n[y/n]: ")).strip().lower()
+                              line + "'\n[y/n]: ")).strip().lower()
 
             if c == 'y':
                 self.tts.say(line)
-    
+
+    def onBlocked(self, strVarName, value):
+        """Print information when movement is blocked."""
+
+        print(
+            "[FAIL] -- CAUSE={}, STATUS={}, LOCATION={}"
+            .format(value[0], value[1], value[2])
+        )
+
+    def onPushed(self, str, val):
+        print("[WARNING] -- Pepper was pushed.")
+
+    def onRecovery(self, str, val):
+        print("[WARNING] -- Push recovery active.")
+
+    def onFall(self, str, val):
+        print("[WARNING] -- Pepper is falling.")
 
     def onFallen(self, str, val):
-        print("I've fallen")
-    def onRecovery(self, str, val):
-        print("Push Recovery")
-    def onPushed(self, str, val):
-        print("Pushed")
-    def onFall(self, str, val):
-        print("Falling")
+        print("[WARNING] -- Pepper has fallen down.")
+
     def onSlope(self, str, val):
-        print("On slope")
+        print("[WARNING] -- Pepper is on a slope.")
+
 
 
 if __name__ == "__main__":
