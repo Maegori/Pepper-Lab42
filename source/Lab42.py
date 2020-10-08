@@ -19,6 +19,19 @@ DETECTION_RANGE = 1.5
 TARGET_DISTANCE = 0.4
 DEADZONE = 0.2
 
+LINE =  ["Ik ga zelf leren op afstand koorts te meten, dat is handig" +
+        "bij bijvoorbeeld een Coronacrisis," +
+        "\\pau=600\\" +
+        "en de \\toi=lhp\\n`@Ou\\toi=orth\\ robots zijn natuurlijk aan het trainen" +
+        "voor het wereldkampioenschap voetbal." +
+        "\\pau=1000\\" +
+        "Maar bovenop dat hele nieuwe robotlab komt het hele Lab42," +
+        "vol met innovatie." +
+        "\\pau=800\\" +
+        "En dat lab moet wel snel gebouwd worden." +
+        "\\pau=500\\" +
+        "Dus kom, laten we de eerste paal gaan slaan!"]
+
 
 class Lab42(object):
 
@@ -35,6 +48,7 @@ class Lab42(object):
         self.awarenessService = session.service("ALBasicAwareness")
         self.lifeService = session.service("ALAutonomousLife")
         self.tts = session.service("ALTextToSpeech")
+        self.atts = session.service("ALAnimatedSpeech")
         self.tabletService = session.service("ALTabletService")
 
         # Set subscriptions
@@ -93,6 +107,8 @@ class Lab42(object):
         stimuli = ["People", "Touch", "TabletTouch",
                    "Sound", "Movement", "NavigationMotion"]
 
+        b_chains = ["Body", "Legs", "Arms", "LArm", "RArm", "Head"]
+
         # Motion service
         self.motionService.setExternalCollisionProtectionEnabled("All", True)
         self.motionService.setCollisionProtectionEnabled("Arms", True)
@@ -105,12 +121,15 @@ class Lab42(object):
         # Awareness Service
         self.awarenessService.setEnabled(True)
         self.awarenessService.setTrackingMode("BodyRotation")  # default
+
         for s in stimuli:
             self.awarenessService.setStimulusDetectionEnabled(s, True)
         self.awarenessService.setEngagementMode("Unengaged")  # default
+        
         # Idle and breath animation
-        self.motionService.setIdlePostureEnabled("Arms", True)
-        self.motionService.setBreathEnabled("Arms", False)
+        for b in b_chains:
+            self.motionService.setIdlePostureEnabled(b, True)
+            self.motionService.setBreathEnabled(b, False)
 
     def demo(self):
         """Main control loop."""
@@ -164,6 +183,8 @@ class Lab42(object):
         elif self.controller.request_button('a'):
             self.alignHit()
             self.motionService.stopMove()
+        elif self.controller.request_button('x'):
+            self.tts.post.say(LINE[0])
         elif self.controller.request_button('y'):
             self.motionService.stopMove()
             self.guidedMove()
@@ -212,16 +233,12 @@ class Lab42(object):
         print("Moving by Hand.")
 
         while not self.controller.request_button("b"):
-            t = time.time()
             self.motionService.setAngles(
                 "LArm", angles, speed
             )
 
-            t0 = time.time()
             self.motionService.setStiffnesses(
                 "LArm", [0.6, 0.1, 0, 0, 0, 0])
-
-            t1 = time.time()
 
             v = self.anglesToMovement()
 
@@ -229,17 +246,10 @@ class Lab42(object):
                 x = v[0]
                 theta = v[1]
 
-                t2 = time.time()
-
                 if not -0.45 < theta < 0.45:
                     x = 0
 
                 self.motionService.moveToward(x, 0, theta)
-
-                t3 = time.time()
-                print(t0 - t, t1 - t0,  t2 - t1, t3 - t2,
-                      np.argmax([t0 - t, t1 - t0,  t2 - t1, t3 - t2]))
-
             else:
                 self.motionService.stopMove()
 
@@ -289,13 +299,17 @@ class Lab42(object):
 
         self.motionService.closeHand("RHand")
         self.postureService.goToPosture("Stand", 0.2)
-        self.align()
+        if self.align():
+            print("EXIT")
+            return   
         self.animate()
 
         print("Waiting for confirmation to release the hammer.")
+
         self.motionService.moveToward(0, 0, -1)
-        time.sleep(1.1)
+
         self.motionService.stopMove()
+        self.tts.say("De eerste paal is geslagen, laat de bouw beginnen!")
         self.holdCustomPose(
             "RArm",
             angles_2,
@@ -319,7 +333,10 @@ class Lab42(object):
 
         phi = 0.0698  # Radians between two adjacent lasers
 
-        while not self.controller.request_button('b'):
+        while True:
+            if self.controller.request_button('b'):
+                return 1
+
             scan = self.memoryService.getListData(keys)
             target = np.argmin(scan)
 
@@ -339,6 +356,7 @@ class Lab42(object):
 
         self.motionService.stopMove()
         print("Target reached and aligned with")
+        return 0
 
     def animate(self):
         ecp = self.motionService.getExternalCollisionProtectionEnabled("Arms")
@@ -347,6 +365,8 @@ class Lab42(object):
         self.motionService.moveToward(0, 0, 0.69)
         time.sleep(1.1)
         self.motionService.stopMove()
+
+        #self.tts.say("Zou je de hamer kunnen aangeven?")
 
         animation = dict()
         names = []
@@ -375,7 +395,7 @@ class Lab42(object):
         print("Approaching target")
         scan = self.memoryService.getListData(keys)
 
-        while min(scan) > TARGET_DISTANCE or not self.controller.request_button('b'):
+        while min(scan) > TARGET_DISTANCE and not self.controller.request_button('b'):
             self.motionService.moveToward(0.3, 0, 0)
             scan = self.memoryService.getListData(keys)
 
@@ -508,12 +528,14 @@ class Lab42(object):
 
         return sum(self.memoryService.getListData(p)) > 0
 
-    def talk(self):
+    def talk(self, arg=None):
         """Function to control the Text-to-Speech with either preprogrammed voice lines or costum voicelines."""
 
         lines = [
             "Dit is allemaal heel interessant, maar ik kan niet wachten" +
             "totdat de bouw gaat beginnen!" +
+            "\\pau=800\\" +
+            "Ik krijg daar namelijk mijn eigen robotlab."
             "\\pau=800\\" +
             "Ik wil daarom nu de eerste paal gaan slaan." +
             "\\pau=800\\" +
