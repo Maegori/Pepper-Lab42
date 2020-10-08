@@ -1,4 +1,6 @@
 import qi
+from naoqi import ALProxy
+
 import argparse
 import functools
 import sys
@@ -19,7 +21,17 @@ DETECTION_RANGE = 1.5
 TARGET_DISTANCE = 0.4
 DEADZONE = 0.2
 
-LINE =  ["Ik ga zelf leren op afstand koorts te meten, dat is handig" +
+LINE =  [            
+        "Dit is allemaal heel interessant, maar ik kan niet wachten" +
+        "totdat de bouw gaat beginnen!" +
+        "\\pau=800\\" +
+        "Ik krijg daar namelijk mijn eigen robotlab."
+        "\\pau=800\\" +
+        "Ik wil daarom nu de eerste paal gaan slaan." +
+        "\\pau=800\\" +
+        "Gaan jullie mee?",
+    
+        "Ik ga zelf leren op afstand koorts te meten, dat is handig" +
         "bij bijvoorbeeld een Coronacrisis," +
         "\\pau=600\\" +
         "en de \\toi=lhp\\n`@Ou\\toi=orth\\ robots zijn natuurlijk aan het trainen" +
@@ -48,7 +60,7 @@ class Lab42(object):
         self.awarenessService = session.service("ALBasicAwareness")
         self.lifeService = session.service("ALAutonomousLife")
         self.tts = session.service("ALTextToSpeech")
-        self.atts = session.service("ALAnimatedSpeech")
+        self.atts = ALProxy("ALTextToSpeech", "146.50.60.38", 9559)
         self.tabletService = session.service("ALTabletService")
 
         # Set subscriptions
@@ -98,6 +110,7 @@ class Lab42(object):
 
         # speech handling
         self.talking = True
+        self.sayOnce = True
 
         # Run behaviour
         self.demo()
@@ -133,15 +146,11 @@ class Lab42(object):
 
     def demo(self):
         """Main control loop."""
+        self.motionService.wakeUp()
 
         stimuli = ["People", "Touch", "TabletTouch",
                    "Sound", "Movement", "NavigationMotion"]
         print("Starting Demo.")
-        self.resetSettings()
-        for s in stimuli:
-            self.awarenessService.setStimulusDetectionEnabled(s, False)
-        self.motionService.wakeUp()
-        self.motionService.moveInit()
 
         self.tabletService.showWebview(
             "http://198.18.0.1/apps/boot-config/preloading_dialog.html")
@@ -154,6 +163,16 @@ class Lab42(object):
         speech.daemon = True
         speech.start()
 
+        # while not self.controller.request_button("start"):
+        #     continue
+
+        # self.tts.say(LINE[0])
+
+        self.resetSettings()
+        for s in stimuli:
+            self.awarenessService.setStimulusDetectionEnabled(s, False)
+        self.motionService.moveInit()
+
         while self.running:
             time.sleep(0.001)
             self.handleEvents()
@@ -161,8 +180,8 @@ class Lab42(object):
         print("Closing App.")
         self.resetSettings()
         self.tabletService.hideWebview()
-        
         return
+    
 
     def handleEvents(self):
         x = -self.controller.request_axis('ry')
@@ -183,8 +202,10 @@ class Lab42(object):
         elif self.controller.request_button('a'):
             self.alignHit()
             self.motionService.stopMove()
-        elif self.controller.request_button('x'):
-            self.tts.post.say(LINE[0])
+        elif self.controller.request_button('x') and self.sayOnce:
+            self.sayOnce = False
+            self.atts.post.say(LINE[1])
+            print("Hi")
         elif self.controller.request_button('y'):
             self.motionService.stopMove()
             self.guidedMove()
@@ -309,7 +330,7 @@ class Lab42(object):
         self.motionService.moveToward(0, 0, -1)
 
         self.motionService.stopMove()
-        self.tts.say("De eerste paal is geslagen, laat de bouw beginnen!")
+        self.atts.post.say("De eerste paal is geslagen, laat de bouw beginnen!")
         self.holdCustomPose(
             "RArm",
             angles_2,
@@ -363,7 +384,7 @@ class Lab42(object):
         self.motionService.setExternalCollisionProtectionEnabled("Arms", False)
 
         self.motionService.moveToward(0, 0, 0.69)
-        time.sleep(1.1)
+        time.sleep(1.15)
         self.motionService.stopMove()
 
         #self.tts.say("Zou je de hamer kunnen aangeven?")
