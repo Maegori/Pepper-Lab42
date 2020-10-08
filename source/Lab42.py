@@ -142,7 +142,7 @@ class Lab42(object):
         # Idle and breath animation
         for b in b_chains:
             self.motionService.setIdlePostureEnabled(b, True)
-            self.motionService.setBreathEnabled(b, False)
+            self.motionService.setBreathEnabled(b, True)
 
     def demo(self):
         """Main control loop."""
@@ -150,6 +150,11 @@ class Lab42(object):
 
         stimuli = ["People", "Touch", "TabletTouch",
                    "Sound", "Movement", "NavigationMotion"]
+        for s in stimuli:
+            self.awarenessService.setStimulusDetectionEnabled(s, False)
+        self.awarenessService.setTrackingMode("Head")
+
+        self.awarenessService.setStimulusDetectionEnabled("People", True)
         print("Starting Demo.")
 
         self.tabletService.showWebview(
@@ -163,10 +168,10 @@ class Lab42(object):
         speech.daemon = True
         speech.start()
 
-        # while not self.controller.request_button("start"):
-        #     continue
+        while not self.controller.request_button("start"):
+            continue
 
-        # self.tts.say(LINE[0])
+        self.tts.say(LINE[0])
 
         self.resetSettings()
         for s in stimuli:
@@ -186,11 +191,6 @@ class Lab42(object):
     def handleEvents(self):
         x = -self.controller.request_axis('ry')
         theta = -self.controller.request_axis('rx')
-
-        if -DEADZONE < x < DEADZONE:
-            x = 0
-        if -DEADZONE < theta < DEADZONE:
-            theta = 0
 
         if not -0.45 < theta < 0.45:
             x = 0
