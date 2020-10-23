@@ -572,10 +572,10 @@ class Lab42(object):
 
     def isTouched(self, chains):
         """
-        Returns True if any of the sensors in the specified chains
+        Returns True if any of the sensors in the list of chains
         is touched otherwise False is returned.
 
-        Available chains are: {"All", "Feet", "Head", "Arms", "LHand", "RHand"}
+        Available chains are: "All", "Feet", "Head", "Arms", "LHand", "RHand"
         """
 
         parts = [

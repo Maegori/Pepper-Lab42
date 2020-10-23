@@ -21,10 +21,10 @@ import argparse
 import math
 
 
-class Navigate(object):
+class Behaviour(object):
 
     def __init__(self, app):
-        super(Navigate, self).__init__()
+        super(Behaviour, self).__init__()
         app.start()
         session = app.session
 
@@ -37,9 +37,9 @@ class Navigate(object):
 
         # Start behaviour
         print("Starting behaviour.")
-        self.move()
+        self.main()
 
-    def move(self):
+    def main(self):
         """Move pepper using the combination of the hand, wrist, and elbow as controller."""
         self.motionService.wakeUp()
         self.motionService.moveInit()
@@ -73,7 +73,6 @@ class Navigate(object):
 
         print("Exiting guided movement.")
         self.motionService.stopMove()
-        self.postureService.goToPosture("Stand", speed)
         self.resetSettings(config)
         self.motionService.rest()
 
@@ -234,5 +233,5 @@ if __name__ == "__main__":
 
     print("Succesfully connected to Pepper @ tcp://" +
           args.ip + ":" + str(args.port))
-    nav = Navigate(app)
+    nav = Behaviour(app)
     app.run()
