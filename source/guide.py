@@ -1,5 +1,5 @@
 """
-FILE: Lab42.py
+FILE: guide.py
 AUTHORS: Lex Johan, Niels Rouws
 EMAIL: lex.johan@student.uva.nl, niels.rouws@student.uva.nl
 DATE: 25/10/2020
@@ -22,6 +22,8 @@ import math
 
 
 class Behaviour(object):
+    """
+    """
 
     def __init__(self, app):
         super(Behaviour, self).__init__()

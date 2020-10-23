@@ -1,5 +1,5 @@
 """
-FILE: Lab42.py
+FILE: approach.py
 AUTHORS: Lex Johan, Niels Rouws
 EMAIL: lex.johan@student.uva.nl, niels.rouws@student.uva.nl
 DATE: 25/10/2020
@@ -12,7 +12,6 @@ NOTES:
         results may vary depending on the size of the target object.
     - Avoid reflective or straight wide objects (walls) because Pepper
         will alternate between multiple closest point and reach none.
-    - 
 """
 
 import qi
@@ -22,6 +21,8 @@ import pickle
 
 
 class Behaviour(object):
+    """
+    """
 
     def __init__(self, app):
         super(Behaviour, self).__init__()
