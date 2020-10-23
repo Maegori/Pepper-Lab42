@@ -10,7 +10,7 @@ DESCRIPTION:
 NOTES:   
     - "All" and "Move" deactivation of the ExternalCollisionProtection 
         need to be allowed by the owner in the advanced settings
-    - Pepper can pull the arm back down if the time between setAngles()
+    - Pepper can pull the arm/elbow back down if the time between setAngles()
         calls is too long.
     - Certain AutonomousLife functions can be enabled but be mindful of
         the performance impact because of the aforementioned problem.  
@@ -48,24 +48,23 @@ class Navigate(object):
         # Define waiting & walking pose.
         angles = [-0.25, 0.2, -1.5, 0, 0, 0.4]
         times = [1.5, 1.5, 1.5, 1.5, 1.5, 1.5]
+        stiffnesses = [0.6, 0.1, 0, 0, 0, 0]
         speed = 0.1
+        turnthold = 0.45
 
         print("Waiting for partner...")
         self.holdCustomPose("LArm", angles, speed, ["LHand"], False)
 
         print("Moving by hand.")
         while not self.isTouched(["Feet", "Head"]):
-            self.motionService.setAngles(
-                "LArm", angles, speed
-            )
-            self.motionService.setStiffnesses(
-                "LArm", [0.6, 0.1, 0, 0, 0, 0])
+            self.motionService.setAngles("LArm", angles, speed)
+            self.motionService.setStiffnesses("LArm", stiffnesses)
             v = self.anglesToMovement(0.6, 14.5, 60)
 
             if v:
                 _, theta, x = v
 
-                if not -0.45 < theta < 0.45:
+                if not -turnthold < theta < turnthold:
                     x = 0
 
                 self.motionService.moveToward(x, 0, theta)
@@ -74,7 +73,7 @@ class Navigate(object):
 
         print("Exiting guided movement.")
         self.motionService.stopMove()
-        self.postureService.goToPosture("Stand", 0.1)
+        self.postureService.goToPosture("Stand", speed)
         self.resetSettings(config)
         self.motionService.rest()
 
@@ -87,12 +86,14 @@ class Navigate(object):
         self.lifeService.setAutonomousAbilityEnabled(
             "BackgroundMovement", False)
         self.motionService.setCollisionProtectionEnabled("Arms", protection)
-
         print("Trying to reach posture...")
+
+        margin = 0.2
+
         while True:
             self.motionService.setAngles(chain, angles, speed)
             current = self.motionService.getAngles(chain, True)
-            if sum([(y-x)**2 for x, y in zip(current, angles)]) < 0.2:
+            if sum([(y-x)**2 for x, y in zip(current, angles)]) < margin:
                 break
 
         print("Waiting in posture...")
@@ -178,9 +179,7 @@ class Navigate(object):
         return sum(self.memoryService.getListData(p)) > 0
 
     def setSettings(self):
-        """
-
-        """
+        """Return the current configuration and put Pepper in the configuration to walk hand in hand."""
         ecp = self.motionService.getExternalCollisionProtectionEnabled("All")
         ss = self.motionService.getSmartStiffnessEnabled()
         cp = self.motionService.getCollisionProtectionEnabled("Arms")
@@ -202,8 +201,7 @@ class Navigate(object):
         return ecp, ss, cp, aa, sd, im, bm
 
     def resetSettings(self, config):
-        """
-        """
+        """Reset Pepper in the original configuration."""
         ecp, ss, cp, aa, sd, im, bm = config
 
         self.motionService.setExternalCollisionProtectionEnabled("All", ecp)
