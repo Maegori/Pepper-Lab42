@@ -17,6 +17,8 @@ NOTES:
 
 import qi
 import argparse
+import time
+import pickle
 
 
 class Behaviour(object):
@@ -52,7 +54,11 @@ class Behaviour(object):
 
         if self.align(1.5, 0.4):
             print("Target reached.")
-            self.postureService.goToPosture("StandZero", 0.2)
+            # Swing animation
+            self.motionService.moveToward(0, 0, 0.7)
+            time.sleep(1.15)
+            self.motionService.stopMove()
+            self.animate("animations/swing2.pickle", False)
 
         self.motionService.stopMove()
         self.awarenessService.setTrackingMode(tm)
@@ -94,6 +100,10 @@ class Behaviour(object):
         """
         Returns the laser index pointing at the closest object
         after moving forward until the object is whitin the maximum distance.
+        Depending on the speed the security distances can be changed appropriately.
+
+        Pepper security distances:
+        http://doc.aldebaran.com/2-5/naoqi/motion/reflexes-external-collision.html 
         """
         self.motionService.setOrthogonalSecurityDistance(0.2)
         self.motionService.setTangentialSecurityDistance(0.05)
@@ -110,6 +120,29 @@ class Behaviour(object):
         self.motionService.setTangentialSecurityDistance(0.1)
         return scan.index(min(scan))
 
+    def animate(self, file):
+        """Go to the "Stand" posture and play the animation in the .pickle file."""
+        ecp = self.motionService.getExternalCollisionProtectionEnabled("Arms")
+        self.motionService.setExternalCollisionProtectionEnabled(
+            "Arms", protection)
+
+        animation = dict()
+        names = []
+        times = []
+        keys = []
+
+        with open(file, "rb") as f:
+            animation = pickle.load(f)
+
+        for key in animation.keys():
+            names.append(key)
+            times.append(animation[key][0])
+            keys.append(animation[key][1])
+
+        self.postureService.goToPosture("StandInit", .5)
+        self.motionService.angleInterpolation(names, keys, times, True)
+        self.motionService.setExternalCollisionProtectionEnabled("Arms", ecp)
+
     def isTouched(self, chains):
         """
         Returns True if any of the sensors in the list of chains
@@ -117,7 +150,7 @@ class Behaviour(object):
 
         Available chains are: "All", "Feet", "Head", "Arms", "LHand", "RHand"
 
-        Pepper Actuator and Sensors:
+        Pepper actuator and sensors:
         http://doc.aldebaran.com/2-0/family/juliette_technical/juliette_dcm/actuator_sensor_names.html
         """
 
