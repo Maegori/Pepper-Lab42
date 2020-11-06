@@ -1,3 +1,14 @@
+"""
+FILE: controller.py
+AUTHORS: Lex Johan, Niels Rouws
+EMAIL: lex.johan@student.uva.nl, niels.rouws@student.uva.nl
+DATE: 06/11/2020
+
+DESCRIPTION:
+Script to let Pepper walk with an xbox controller. See xbone.py
+for more information.
+"""
+
 import qi
 import argparse
 import functools
@@ -32,6 +43,8 @@ class Controller(object):
         # prints the available buttons and axes of the current controller
         print(js.button_map)
         print(js.axis_map)
+
+        self.control()
 
     def control(self):
 
