@@ -121,7 +121,7 @@ class Behaviour(object):
         self.motionService.setTangentialSecurityDistance(0.1)
         return scan.index(min(scan))
 
-    def animate(self, file):
+    def animate(self, file, protection=True):
         """Go to the "Stand" posture and play the animation in the .pickle file."""
         ecp = self.motionService.getExternalCollisionProtectionEnabled("Arms")
         self.motionService.setExternalCollisionProtectionEnabled(
