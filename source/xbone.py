@@ -26,7 +26,7 @@ import time
 import sys
 from fcntl import ioctl
 
-# standard joystick path
+# default joystick path
 PATH = "/dev/input/js0"
 
 # time in seconds between each read loop
