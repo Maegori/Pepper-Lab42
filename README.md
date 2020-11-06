@@ -22,7 +22,7 @@ While connected to the same network as Pepper scripts lcoated in the ./source fo
 can be executed in the docker terminal.
 
 ```
-~/source# python behaviour.py --ip x.x.x.x --port 1234
+~/source# python behaviour.py --ip x.x.x.x
 ```
 
 ## Good to know
