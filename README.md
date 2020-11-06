@@ -18,7 +18,8 @@ $ docker attach pepper
 ```
 
 ## Running behaviours
-While connected to the same network as Pepper behaviours can be executed in the docker terminal.
+While connected to the same network as Pepper scripts lcoated in the ./source folder
+can be executed in the docker terminal.
 
 ```
 ~/source# python behaviour.py --ip x.x.x.x --port 1234
