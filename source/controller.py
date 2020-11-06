@@ -36,22 +36,25 @@ class Controller(object):
         self.js = Xbone(path_to_js)
 
         # start the reading on a seperate thread
-        x = threading.Thread(target=js.read)
+        x = threading.Thread(target=self.js.read)
         x.daemon = True
         x.start()
 
         # prints the available buttons and axes of the current controller
-        print(js.button_map)
-        print(js.axis_map)
+        print(self.js.button_map)
+        print(self.js.axis_map)
 
         self.control()
 
     def control(self):
 
         while self.js.running:
+            if self.js.request_button('select'):
+                self.js.terminate()
+
             # get axes of right stick
-            x = -self.controller.request_axis('ry')
-            theta = -self.controller.request_axis('rx')
+            x = -self.js.request_axis('ry')
+            theta = -self.js.request_axis('rx')
 
             # if the turning speed is too high, set the forward movement to 0 for smoother turns
             if not -0.45 < theta < 0.45:
