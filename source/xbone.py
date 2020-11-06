@@ -1,13 +1,10 @@
-import os
-import struct
-import array
-import threading
-import time
-import sys
-from fcntl import ioctl
-
-
 """
+FILE: xbone.py
+AUTHORS: Lex Johan, Niels Rouws
+EMAIL: lex.johan@student.uva.nl, niels.rouws@student.uva.nl
+DATE: 06/11/2020
+
+DESCRIPTION: 
 Class to read an xbox controller, works best with the xbox one controller.
 
 Create the object with the path to the device in "/dev/input/", and start
@@ -18,6 +15,15 @@ terminate method.
 Example provided below.
 """
 
+import os
+import struct
+import array
+import threading
+import time
+import sys
+from fcntl import ioctl
+
+PATH = "input/dev/js0"
 
 class Xbone():
 
@@ -169,13 +175,15 @@ class Xbone():
 
 
 if __name__ == "__main__":
+    # create the object with the path to the controller
+    js = Xbone(PATH)
 
-    js = Xbone('/dev/input/js1')
-
+    # start the reading on a seperate thread
     x = threading.Thread(target=js.read)
     x.daemon = True
     x.start()
 
+    # prints the available buttons and axes of the current controller
     print(js.button_map)
     print(js.axis_map)
 
