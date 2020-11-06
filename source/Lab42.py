@@ -68,7 +68,7 @@ class Lab42(object):
     for the 'Lab42 eerste paal' event for Lab42 of the University of Amsterdam. 
     """
 
-    def __init__(self, app):
+    def __init__(self, app, ip):
         super(Lab42, self).__init__()
         app.start()
         session = app.session
@@ -81,7 +81,7 @@ class Lab42(object):
         self.awarenessService = session.service("ALBasicAwareness")
         self.lifeService = session.service("ALAutonomousLife")
         self.tts = session.service("ALTextToSpeech")
-        self.atts = ALProxy("ALTextToSpeech", "10.0.0.52", 9559)
+        self.atts = ALProxy("ALTextToSpeech", ip, 9559)
         self.tabletService = session.service("ALTabletService")
 
         # Set subscriptions to events.
@@ -673,5 +673,5 @@ if __name__ == "__main__":
 
     print("Succesfully connected to Pepper @ tcp://" +
           args.ip + ":" + str(args.port))
-    nav = Lab42(app)
+    nav = Lab42(app, args.ip)
     app.run()

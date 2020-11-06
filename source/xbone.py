@@ -7,6 +7,18 @@ import sys
 from fcntl import ioctl
 
 
+"""
+Class to read an xbox controller, works best with the xbox one controller.
+
+Create the object with the path to the device in "/dev/input/", and start
+the read loop on another thread. After which you can request the states of the controller via
+request_button and request_axis. Finally, stop the read loop with the 
+terminate method.
+
+Example provided below.
+"""
+
+
 class Xbone():
 
     def __init__(self, path_to_device):
@@ -92,6 +104,7 @@ class Xbone():
         self.button_map = []
 
         with open(self.device, 'rb') as jsdev:
+            ""
             buf = array.array('B', [0])
             ioctl(jsdev, 0x80016a11, buf)
             num_axes = buf[0]
@@ -120,6 +133,9 @@ class Xbone():
         self.running = False
 
     def read(self):
+        """
+        Main loop. Records all the controller states in a dictionary. 
+        """
         with open(self.device, 'rb') as jsdev:
             while self.running:
                 evbuf = jsdev.read(8)
@@ -140,9 +156,15 @@ class Xbone():
                 time.sleep(0.001)
 
     def request_axis(self, axis):
+        """
+        Given the name of an axis as a string, return its value in the axis_states
+        """
         return self.axis_states[axis]
 
     def request_button(self, button):
+        """
+        Given the name of abutton as a string, return its value in the button_states
+        """
         return self.button_states[button]
 
 
@@ -153,18 +175,13 @@ if __name__ == "__main__":
     x = threading.Thread(target=js.read)
     x.daemon = True
     x.start()
+
     print(js.button_map)
     print(js.axis_map)
 
-    while True:
-        if js.request_button("start"):
-            print("ok")
-        elif js.request_button("tl"):
-            print("triggerR")
-    # while True:
-    #     try:
-    #         time.sleep(0.01)
-    #         print(js.request_axis('rx'), -js.request_axis('ry'))
-    #     except KeyboardInterrupt:
-    #         js.terminate()
-    #         break
+    # prints the x and y axis of the right stick, press select to terminate the loop
+    while js.running:
+        print(js.request_axis('rx'), js.request_axis('ry'))
+        if js.request_button('select'):
+            js.terminate()
+
