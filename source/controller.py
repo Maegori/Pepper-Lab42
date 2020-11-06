@@ -6,7 +6,7 @@ DATE: 06/11/2020
 
 DESCRIPTION:
 Script to let Pepper walk with an xbox controller. See xbone.py
-for more information.
+for more information. Works
 """
 
 import qi
@@ -24,7 +24,7 @@ from xbone import Xbone
 class Controller(object):
 
     def __init__(self, app, path_to_js):
-        super(Navigator, self).__init__()
+        super(Controller, self).__init__()
         app.start()
         session = app.session
 
