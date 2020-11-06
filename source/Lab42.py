@@ -81,7 +81,7 @@ class Lab42(object):
         self.awarenessService = session.service("ALBasicAwareness")
         self.lifeService = session.service("ALAutonomousLife")
         self.tts = session.service("ALTextToSpeech")
-        self.atts = ALProxy("ALTextToSpeech", "146.50.60.38", 9559)
+        self.atts = ALProxy("ALTextToSpeech", "10.0.0.52", 9559)
         self.tabletService = session.service("ALTabletService")
 
         # Set subscriptions to events.
