@@ -5,7 +5,8 @@ EMAIL: lex.johan@student.uva.nl, niels.rouws@student.uva.nl
 DATE: 25/10/2020
 
 DESCRIPTION:
-
+    Behaviour class for Pepper robot to approach the closest object in
+    the range of the lasers.
 
 NOTES:
     - The behaviour won't fuction well at ranges <0.3 or >2 meters
@@ -22,6 +23,8 @@ import pickle
 
 class Behaviour(object):
     """
+    Behaviour class for Pepper robot to approach the closest object in
+    the range of the lasers.
     """
 
     def __init__(self, app):

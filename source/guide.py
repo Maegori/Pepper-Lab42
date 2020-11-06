@@ -5,7 +5,8 @@ EMAIL: lex.johan@student.uva.nl, niels.rouws@student.uva.nl
 DATE: 25/10/2020
 
 DESCRIPTION: 
-
+    Behaviour class for Pepper robot to walk side-by-side while controlling
+    Pepper's movement  using the arm.
 
 NOTES:   
     - "All" and "Move" deactivation of the ExternalCollisionProtection 
@@ -23,6 +24,8 @@ import math
 
 class Behaviour(object):
     """
+    Behaviour class for Pepper robot to walk side-by-side while controlling
+    Pepper's movement  using the arm.
     """
 
     def __init__(self, app):

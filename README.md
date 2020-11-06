@@ -1,17 +1,23 @@
 # Pepper Lab42
 
-## Build Image
+## Set up
 ```
-sudo docker build -t lab42 .
+$ docker build -t lab42 .
 ```
 
-## Run container 
 ```
-sudo docker run -it -v ${PWD}/source:/root/source lab42
+$ docker run -it --name pepper --net=host --env="DISPLAY" --volume="$HOME/.Xauthority:/root/.Xauthority:rw"  --device=/dev/input/ -v ${PWD}/source:/root/source lab42
 ```
-// Expose $DISPLAY variable for GUI apps
+## Starting environment
+Expose $DISPLAY variable for GUI apps and attach a terminal
+ to the container where behaviour scripts can be executed.
 ```
-sudo docker run -it --name pepper --net=host --env="DISPLAY" --volume="$HOME/.Xauthority:/root/.Xauthority:rw"  --device=/dev/input/ -v ${PWD}/source:/root/source lab42
+$ xhost +local:root
+$ docker start pepper
+$ docker attach pepper
+# double ENTER
+
+~/source# 
 ```
 
 ## Good to know

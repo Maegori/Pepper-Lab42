@@ -68,7 +68,7 @@ class Lab42(object):
     for the 'Lab42 eerste paal' event for Lab42 of the University of Amsterdam. 
     """
 
-    def __init__(self, app):
+    def __init__(self, app, ip, port):
         super(Lab42, self).__init__()
         app.start()
         session = app.session
@@ -81,7 +81,7 @@ class Lab42(object):
         self.awarenessService = session.service("ALBasicAwareness")
         self.lifeService = session.service("ALAutonomousLife")
         self.tts = session.service("ALTextToSpeech")
-        self.atts = ALProxy("ALTextToSpeech", "146.50.60.38", 9559)
+        self.atts = ALProxy("ALTextToSpeech", ip, port)
         self.tabletService = session.service("ALTabletService")
 
         # Set subscriptions to events.
@@ -131,10 +131,57 @@ class Lab42(object):
 
         # Input handling
         self.running = True
-        self.controller = Xbone('/dev/input/js0')
+        self.controller = Xbone('/dev/input/js1')
 
         # Run behaviour
         self.demo()
+
+    def demo(self):
+        """
+        Pepper waits in a configured Autonomous Life mode until activated.
+        Activated, Pepper can be controlled and to move and switch states
+        until the behaviour is closed. 
+        """
+        self.motionService.wakeUp()
+        stimuli = ["People", "Touch", "TabletTouch",
+                   "Sound", "Movement", "NavigationMotion"]
+
+        for s in stimuli:
+            self.awarenessService.setStimulusDetectionEnabled(s, False)
+
+        self.awarenessService.setTrackingMode("Head")
+        self.awarenessService.setStimulusDetectionEnabled("People", True)
+
+        print("Starting behaviour.")
+        self.tabletService.showWebview(
+            "http://198.18.0.1/apps/boot-config/preloading_dialog.html")
+
+        t = threading.Thread(target=self.controller.read)
+        t.deamon = True
+        t.start()
+        speech = threading.Thread(target=self.talk)
+        speech.daemon = True
+        speech.start()
+
+        while not self.controller.request_button("start"):
+            continue
+
+        self.tts.say(LINE[0])
+
+        self.resetSettings()
+
+        for s in stimuli:
+            self.awarenessService.setStimulusDetectionEnabled(s, False)
+        self.motionService.moveInit()
+
+        # Main loop
+        while self.running:
+            time.sleep(0.001)
+            self.handleEvents()
+
+        print("Quiting behaviour.")
+        self.resetSettings()
+        self.tabletService.hideWebview()
 
     def resetSettings(self):
         """Resets all settings to default to ensure behaviour always runs
@@ -166,50 +213,6 @@ class Lab42(object):
             self.motionService.setIdlePostureEnabled(b, True)
             self.motionService.setBreathEnabled(b, True)
 
-    def demo(self):
-        """
-        Pepper waits in a configured Autonomous Life mode until activated.
-        Activated, Pepper can be controlled and to move and switch states
-        until the behaviour is closed. 
-        """
-        self.motionService.wakeUp()
-        stimuli = ["People", "Touch", "TabletTouch",
-                   "Sound", "Movement", "NavigationMotion"]
-        for s in stimuli:
-            self.awarenessService.setStimulusDetectionEnabled(s, False)
-        self.awarenessService.setTrackingMode("Head")
-        self.awarenessService.setStimulusDetectionEnabled("People", True)
-
-        print("Starting behaviour.")
-        self.tabletService.showWebview(
-            "http://198.18.0.1/apps/boot-config/preloading_dialog.html")
-
-        t = threading.Thread(target=self.controller.read)
-        t.deamon = True
-        t.start()
-        speech = threading.Thread(target=self.talk)
-        speech.daemon = True
-        speech.start()
-
-        while not self.controller.request_button("start"):
-            continue
-
-        self.tts.say(LINE[0])
-
-        self.resetSettings()
-        for s in stimuli:
-            self.awarenessService.setStimulusDetectionEnabled(s, False)
-        self.motionService.moveInit()
-
-        # Main loop
-        while self.running:
-            time.sleep(0.001)
-            self.handleEvents()
-
-        print("Quiting behaviour.")
-        self.resetSettings()
-        self.tabletService.hideWebview()
-
     def handleEvents(self):
         """Bindings for controller inputs that is read each tick."""
 
@@ -226,9 +229,11 @@ class Lab42(object):
         elif self.controller.request_button('x') and self.sayOnce:
             self.sayOnce = False
             self.atts.post.say(LINE[1])
+
         elif self.controller.request_button('a'):
             self.alignHit()
             self.motionService.stopMove()
+
         elif self.controller.request_button('y'):
             self.motionService.stopMove()
             self.guidedMove()
@@ -244,8 +249,10 @@ class Lab42(object):
         # Configure settings
         ecp = self.motionService.getExternalCollisionProtectionEnabled("All")
         self.motionService.setExternalCollisionProtectionEnabled("All", False)
+
         ss = self.motionService.getSmartStiffnessEnabled()
         self.motionService.setSmartStiffnessEnabled(False)
+
         cp = self.motionService.getCollisionProtectionEnabled("Arms")
         self.motionService.setCollisionProtectionEnabled("Arms", False)
         aa = self.lifeService.getAutonomousAbilityEnabled(
@@ -346,6 +353,7 @@ class Lab42(object):
 
         self.motionService.closeHand("RHand")
         self.postureService.goToPosture("Stand", 0.2)
+
         if self.align():
             print("EXIT")
             return
@@ -673,5 +681,5 @@ if __name__ == "__main__":
 
     print("Succesfully connected to Pepper @ tcp://" +
           args.ip + ":" + str(args.port))
-    nav = Lab42(app)
+    nav = Lab42(app, args.ip, args.port)
     app.run()
