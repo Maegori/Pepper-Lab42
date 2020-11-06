@@ -13,6 +13,9 @@ request_button and request_axis. Finally, stop the read loop with the
 terminate method.
 
 Example provided below.
+
+Mostly inspired by:
+https://gist.github.com/emdeex/97b771b264bebbd1e18dd897404040be
 """
 
 import os
@@ -23,7 +26,11 @@ import time
 import sys
 from fcntl import ioctl
 
-PATH = "input/dev/js0"
+# standard joystick path
+PATH = "/dev/input/js0"
+
+# time in seconds between each read loop
+REST = 0.001
 
 class Xbone():
 
@@ -159,7 +166,7 @@ class Xbone():
                         if axis:
                             self.axis_states[axis] = round(value / 32767.0, 1)
 
-                time.sleep(0.001)
+                time.sleep(REST)
 
     def request_axis(self, axis):
         """
@@ -192,4 +199,3 @@ if __name__ == "__main__":
         print(js.request_axis('rx'), js.request_axis('ry'))
         if js.request_button('select'):
             js.terminate()
-
