@@ -44,6 +44,7 @@ class Controller(object):
         print(self.js.button_map)
         print(self.js.axis_map)
 
+        self.motionService.moveInit()
         self.control()
 
     def control(self):
